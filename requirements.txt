@@ -1,0 +1,11 @@
+logger
+py-cord
+pynacl
+pixivpy3
+numpy
+opencv-python-headless
+googletrans==3.1.0a0
+bs4
+youtube_dl
+python-dotenv
+pillow
