@@ -12,6 +12,10 @@ import help
 from googletrans import Translator
 import requests
 import pixivpy3
+import random
+from bs4 import BeautifulSoup
+from EmbedMessage import SakuraEmbedMsg
+from utils.word_count import count
 
 PATH = os.path.join(os.path.dirname(__file__))
 translator = Translator()
@@ -57,7 +61,7 @@ class MainCommands(commands.Cog):
             current_humidity = y["humidity"]
             z = x["weather"]
             city_name = translator.translate(city, dest='zh-tw').text
-            embed = discord.Embed(title=f"這是在 {city_name} 的天氣", color=0xd98d91)
+            embed = SakuraEmbedMsg(title=f"這是在 {city_name} 的天氣")
             weather_description = translator.translate(
                 z[0]["description"], dest='zh-tw').text
             embed.add_field(
@@ -69,7 +73,6 @@ class MainCommands(commands.Cog):
             embed.add_field(name="大氣壓力(hPa)",
                             value=f"**{current_pressure}hPa**", inline=False)
             embed.set_thumbnail(url="https://i.ibb.co/CMrsxdX/weather.png")
-            embed.set_footer(text=f"要求自:{message.author.name}")
             await message.respond(embed=embed, ephemeral=True)
         else:
             await message.respond("我找不到這個城市喔😨", ephemeral=True)
@@ -82,7 +85,7 @@ class MainCommands(commands.Cog):
         search = text
         try:
             if int(num) > 30:
-                await message.send('最多只能查詢30張圖片喔')
+                await message.respond('最多只能查詢30張圖片喔', ephemeral=True)
                 return
             elif int(num) > 1:
                 tmp = int(num) - 1
@@ -96,7 +99,7 @@ class MainCommands(commands.Cog):
                 search, search_target='partial_match_for_tags')
             illust = json_result.illusts[tmp]
         except:
-            await message.respond('pixiv上沒有關於這個關鍵字的圖片喔')
+            await message.respond('pixiv上沒有關於這個關鍵字的圖片喔', ephemeral=True)
             return
         url = illust.image_urls['large']
         url = url.split('https://i.pximg.net', 2)
@@ -137,6 +140,7 @@ class MainCommands(commands.Cog):
                 t.close()
 
     @commands.slash_command(description="設定目前的頻道為動態語音創建用文字頻道")
+    @default_permissions(administrator=True)
     async def vcset(self,message: discord.ApplicationContext):
         if message.author.guild_permissions.manage_channels or str(message.author.id) == '540134212217602050':
             id=str(message.channel.id)
@@ -162,6 +166,7 @@ class MainCommands(commands.Cog):
             return
         
     @commands.slash_command(description="取消動態語音創建用文字頻道")
+    @default_permissions(administrator=True)
     async def vcdel(self,message: discord.ApplicationContext):
         id = str(message.channel.id)
         if message.author.guild_permissions.manage_channels or str(message.author.id) == '540134212217602050':
@@ -183,7 +188,134 @@ class MainCommands(commands.Cog):
         else:
             await message.respond('您沒有權限執行此操作', ephemeral=True)
             return
+        
+    @commands.slash_command(description="設定指定的語音頻道為動態語音創建用語音頻道")
+    @option("channel", type=type.channel, description="頻道名稱", required=True)
+    @default_permissions(administrator=True)
+    async def dvcset(self,message: discord.ApplicationContext,channel:discord.VoiceChannel):
+        if message.author.guild_permissions.manage_channels or str(message.author.id) == '540134212217602050':
+            c = open(f'{PATH}/channelID/DV_ChannelID.txt', 'r')
+            temp = eval(c.read())
+            c.close()
+            if str(channel.id) in str(temp):
+                await message.respond('此頻道已登記', ephemeral=True)
+                return
+            channel = self.bot.get_channel(int(channel.id))
+            if channel != None:
+                f = open(f'{PATH}/channelID/DV_ChannelID.txt', 'w')
+                temp.append(str(channel.id))
+                f.write(str(temp))
+                f.close()
+                await message.respond(f'已設定{channel.name}為動態語音產生頻道', ephemeral=True)
+                return
+            else:
+                await message.respond('未找到此頻道', ephemeral=True)
+                return
+        else:
+            await message.respond('您沒有權限執行此操作', ephemeral=True)
+            return
+        
+    @commands.slash_command(description="有問題就問問我吧！我可以幫你解答的😆")
+    @option("question", type=type.string, description="請輸入您想問的問題", required=True)
+    async def pool(self,message: discord.ApplicationContext,question):
+        name = str(message.author).split('#')
+        conv = ['一定的', '沒有異議', '你會依靠他的', '好喔',
+                '你不會想知道的', '基於我的看法:不要！', '不要。', '你要確定誒',
+                '不好說', '等等再問我吧', '好問題，我需要思考一下', '我現在沒辦法決定🤔']
+        await message.respond(f'對於{name[0]}的問題:\n{question}\n我的回答是:{random.choice(conv)}')
+
+    @commands.slash_command(description="開車囉!")
+    @option("number", type=type.integer, description="以此數字搜索指定漫畫(0為隨機)", required=False)
+    async def n(self,message: discord.ApplicationContext,number=0):
+        try:
+            if message.channel.is_nsfw() == True or str(message.author.id) == '540134212217602050':
+                sended_message = await message.respond('查詢中...')
+                black_list=[228922]
+                while True:
+                    if int(number) in black_list:
+                        await sended_message.edit_original_response(content="不受理此號碼")
+                        return
+                    if int(number) == 0:
+                        number = str(random.randint(1, 400000))
+                    else:
+                        number = str(number)
+                    url = "https://nhentai.net/g/" + number
+                    search_obj = requests.get(f"https://translate.google.com/translate?sl=vi&tl=en&hl=vi&u={url}&client=webapp")
+                    if search_obj.status_code == 404:
+                        if int(number) == 0:
+                            continue
+                        else:
+                            await sended_message.edit_original_response(content="查詢錯誤，此漫畫不存在。")
+                        return
+                    Soup = BeautifulSoup(search_obj.text,'html.parser')
+                    title = Soup.title.string.replace(" » nhentai: hentai doujinshi and manga","")
+                    image = Soup.find("meta", itemprop="image").get('content')  
+                    embed = SakuraEmbedMsg(title=title, color=0xd98d91)
+                    embed.set_image(url=image)
+                    embed.add_field(name="漫畫連結", value=url, inline=False)
+                    await sended_message.edit_original_response(embed=embed,content="")
+                    return
+            else:
+                await message.respond("不可以色色!", ephemeral=True)
+        except Exception as e:
+            await message.respond(str(e), ephemeral=True)
+
+    @commands.slash_command(description="擲骰子")
+    @option("max_number", type=type.integer, description="指定最大的數(空白預設為6)", required=False)
+    @option("min_number", type=type.integer, description="指定最小的數(空白預設為1)", required=False)
+    async def roll(self,message: discord.ApplicationContext,max_number=6,min_number=0):
+        if max_number < min_number:
+            embed = SakuraEmbedMsg(title="錯誤",description=f"最小的數大於最大的數")
+            await message.respond(embed=embed, ephemeral=True)
+            return
+        embed = SakuraEmbedMsg(title="擲骰子",description=f"您擲到了{random.choice(range(min_number,max_number))}")
+        await message.respond(embed=embed)
+
+    @commands.slash_command(description="查看本伺服器總字數排名")
+    async def leaderboard(self,message: discord.ApplicationContext):
+        name=str(message.author)
+        guild=int(message.guild.id)
+        tmp = count.rank_query(name, guild)
+        file = discord.File(f"./rank_tmp/{str(guild)}.png", filename="rank.png")
+        if len(tmp) != 0:
+            embed = SakuraEmbedMsg(title=f"{str(message.guild)}的伺服器總字數排名")
+            embed.set_image(url=f"attachment://rank.png")
+            await message.respond(embed=embed, file=file)
+            os.remove(f"./rank_tmp/{str(guild)}.png")
+            return
+        else:
+            await message.respond("這裡居然沒有人講過話...", ephemeral=True)
+            return
+        
+    @commands.slash_command(description="查看個人伺服器總字數排名")
+    @option("name", type=type.user, description="標記以查詢指定帳號", required=False)
+    async def rank(self,message: discord.ApplicationContext,name=None):
+        embed = SakuraEmbedMsg()
+        await message.respond(embed=count.user_rank_query(name=name, guild=int(message.guild.id),message=message, embed=embed))
+
+    @commands.slash_command(description="把人ban不見")
+    @option("member", type=type.user, description="標記以指定帳號", required=False)
+    @option("reason", type=type.string, description="原因", required=False)
+    @default_permissions(administrator=True)
+    async def ban(self,message: discord.ApplicationContext,member:discord.User,reason=None):
+        if message.author.guild_permissions.administrator == True:
+            await message.guild.ban(user=member, delete_message_days=0, reason = reason)
+            embed = SakuraEmbedMsg(title=member.name,description=f"{member.mention}已經被ban啦")
+            await message.respond(embed=embed)
+        else:
+            await message.respond(f"您沒有權限使用此指令", ephemeral=True)
     
+    @commands.slash_command(description="把人踢不見")
+    @option("member", type=type.user, description="標記以指定帳號", required=False)
+    @option("reason", type=type.string, description="原因", required=False)
+    @default_permissions(administrator=True)
+    async def kick(self,message: discord.ApplicationContext,member:discord.User,reason=None):
+        if message.author.guild_permissions.administrator == True:
+            await message.guild.kick(user=member, reason = reason)
+            embed = SakuraEmbedMsg(title=member.name,description=f"{member.mention}已經被踢啦")
+            await message.respond(embed=embed)
+        else:
+            await message.respond(f"您沒有權限使用此指令", ephemeral=True)
 
     
 

@@ -9,7 +9,7 @@ import os
 
 PATH = os.path.join(os.path.dirname(__file__))
 global db
-db = sqlite3.connect(f"{PATH}/word_count.db")
+db = sqlite3.connect(f"./databases/word_count.db")
 
 
 class opencv:
@@ -17,7 +17,7 @@ class opencv:
         if (isinstance(img, np.ndarray)):
             img = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2BGRA))
         draw = ImageDraw.Draw(img)
-        fontStyle = ImageFont.truetype(f"{PATH}/font/Iansui094-Regular.ttf", 35, encoding="utf-8")
+        fontStyle = ImageFont.truetype(f"./font/Iansui094-Regular.ttf", 35, encoding="utf-8")
         if fontStyle.getsize(text)[0] > 390:
             for i in range(len(list(text))+1,0,-1):
                 if fontStyle.getsize(text[:i])[0] < 400:
@@ -69,21 +69,21 @@ class count:
         return
 
     def old_rank_query(name,guild):
-        db = sqlite3.connect(f"{PATH}/word_count.db")
+        db = sqlite3.connect(f"./databases/word_count.db")
         tmp=""
         for i in db.execute(f'''SELECT Name,Msg_count from Count where Guild = {guild} ORDER BY Msg_count DESC LIMIT 10;'''):
             tmp = tmp + str(i[0]) + "，字數為" + str(i[1]) + "\n"
         return tmp
     
     def rank_query(name, guild):
-        img = cv2.imread(f'/home/evanlau/opencv/rank.png', cv2.IMREAD_UNCHANGED)
+        img = cv2.imread(f'./media/rank.png', cv2.IMREAD_UNCHANGED)
         tmp=[]
         for i in db.execute(f'''SELECT Name,Msg_count from Count where Guild = {guild} ORDER BY Msg_count DESC LIMIT 10;'''):
             tmp.append(i)
         for i,x in zip(tmp,range(19,919,90)):
             img = opencv.cv2ImgAddText(img,str(i[0]),110,x,"black")
             img = opencv.cv2ImgAddText(img,str(i[1]),540,x,"black")
-        cv2.imwrite(f'{PATH}/rank_tmp/{guild}.png', img)
+        cv2.imwrite(f'./rank_tmp/{guild}.png', img)
         return tmp
     
     def levels(msg):
@@ -111,11 +111,11 @@ class count:
         print(bar)
         return str(bar)
 
-    def user_rank_query(name, guild, message, embed):
+    def user_rank_query(name:discord.User, guild, message:discord.Message, embed):
         rk_list = db.execute(f'''SELECT Id,Name,Msg_count from Count where Guild = {guild} ORDER BY Msg_count DESC''')
         cur=0
         if name == None:
-            embed.set_author(name=message.author, icon_url=message.author.avatar_url)
+            embed.set_author(name=message.author, icon_url=message.author.avatar.url)
             for i in rk_list:
                 cur+=1
                 if int(message.author.id) == int(i[0]):
@@ -124,7 +124,7 @@ class count:
                     msg_count=int(i[2])
                     break
         else:
-            embed.set_author(name=name,icon_url=name.avatar_url)
+            embed.set_author(name=name,icon_url=name.avatar.url)
             id = int(name.id)
             for i in rk_list:
                 cur+=1
@@ -144,7 +144,7 @@ class count:
     
 class dailyCheck():
     def __init__(self):
-        self.dailyCheckDB = sqlite3.connect(f"{PATH}/databases/daily.db")
+        self.dailyCheckDB = sqlite3.connect(f"./databases/daily.db")
         self.dailyCheckDB.row_factory = sqlite3.Row
         self.cursor = self.dailyCheckDB.cursor()
         self.notifi_list = ["群主 該換上女裝了，不要讓大家等太久喔~", # 1 ~ 5

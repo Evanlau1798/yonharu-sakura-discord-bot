@@ -1,3 +1,4 @@
 [
-    "extensions.main_commands"
+    "extensions.main_commands",
+    "extensions.music_commands"
 ]

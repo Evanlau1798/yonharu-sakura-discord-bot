@@ -2,7 +2,6 @@ import discord
 import logger
 import json
 import os
-import phone
 
 PATH = os.path.join(os.path.dirname(__file__))
 
@@ -10,7 +9,7 @@ PATH = os.path.join(os.path.dirname(__file__))
 class mainBot(discord.Bot):
     def __init__(self):
         super().__init__()
-        #self.debug_guilds = [912688935363305484,969732954572075008]
+        self.debug_guilds = [912688935363305484]
 
     async def on_ready(self):
         self.loadButton()
@@ -22,6 +21,7 @@ class mainBot(discord.Bot):
 
 if __name__ == "__main__":
     bot = mainBot()
+    import phone    
 
     with open(f"{PATH}/extensions.json", mode="r", encoding='utf-8') as extensions:
         extensions = json.load(extensions)
