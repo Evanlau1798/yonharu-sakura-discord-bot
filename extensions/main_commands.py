@@ -14,8 +14,9 @@ import requests
 import pixivpy3
 import random
 from bs4 import BeautifulSoup
-from EmbedMessage import SakuraEmbedMsg
+from utils.EmbedMessage import SakuraEmbedMsg
 from utils.word_count import count
+from utils.game import game
 
 PATH = os.path.join(os.path.dirname(__file__))
 translator = Translator()
@@ -317,6 +318,75 @@ class MainCommands(commands.Cog):
         else:
             await message.respond(f"您沒有權限使用此指令", ephemeral=True)
 
+    @commands.slash_command(description="創建問題並進行投票吧!")
+    @option("quetion", type=type.string, description="問題", required=True)
+    @option("choice1", type=type.string, description="選項一", required=True)
+    @option("choice2", type=type.string, description="選項二", required=False)
+    @option("choice3", type=type.string, description="選項三", required=False)
+    @option("choice4", type=type.string, description="選項四", required=False)
+    @option("choice5", type=type.string, description="選項五", required=False)
+    @option("choice6", type=type.string, description="選項六", required=False)
+    @option("choice7", type=type.string, description="選項七", required=False)
+    @option("choice8", type=type.string, description="選項八", required=False)
+    @option("choice9", type=type.string, description="選項九", required=False)
+    @option("choice10", type=type.string, description="選項十", required=False)
+    async def poll(self,message: discord.ApplicationContext,quetion,choice1,
+                   choice2=None,choice3=None,choice4=None,choice5=None,choice6=None,
+                   choice7=None,choice8=None,choice9=None,choice10=None):
+        choices = ""
+        choices_amount = 0
+        choices_emoji = ["1️⃣","2️⃣","3️⃣","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣","9️⃣","🔟"]
+        if choice1 != None:
+            choices = choices + f"1️⃣:{choice1}\n"
+            choices_amount+=1
+        if choice2 != None:
+            choices = choices + f"2️⃣:{choice2}\n"
+            choices_amount+=1
+        if choice3 != None:
+            choices = choices + f"3️⃣:{choice3}\n"
+            choices_amount+=1
+        if choice4 != None:
+            choices = choices + f"4️⃣:{choice4}\n"
+            choices_amount+=1
+        if choice5 != None:
+            choices = choices + f"5️⃣:{choice5}\n"
+            choices_amount+=1
+        if choice6 != None:
+            choices = choices + f"6️⃣:{choice6}\n"
+            choices_amount+=1
+        if choice7 != None:
+            choices = choices + f"7️⃣:{choice7}\n"
+            choices_amount+=1
+        if choice8 != None:
+            choices = choices + f"8️⃣:{choice8}\n"
+            choices_amount+=1
+        if choice9 != None:
+            choices = choices + f"9️⃣:{choice9}\n"
+            choices_amount+=1
+        if choice10 != None:
+            choices = choices + f"🔟:{choice10}\n"
+            choices_amount+=1
+        embed = SakuraEmbedMsg(description=choices)
+        embed.set_author(name=quetion,icon_url=message.author.avatar.url)
+        embed.add_field(name="投票建立者", value=message.author.mention, inline=False)
+        msg:discord.Message = await message.channel.send(embed=embed)
+        await message.respond("已建立投票", ephemeral=True)
+        for i in range(choices_amount):
+            await msg.add_reaction(choices_emoji[i])
+        return
+    
+    @commands.slash_command(description="遊玩小遊戲!")
+    @option("difficulty", type=type.integer, description="自訂難度(預設為100)", required=False)
+    async def game(self,message: discord.ApplicationContext,difficulty=100):
+        await message.response.defer()
+        global quetion
+        if difficulty >= 1:
+            quetion_message = await message.respond(f"猜猜看究竟是0~{difficulty}中哪一個數吧!\n(回覆此訊息以猜測，限時45秒)")
+            quetion = game(quetion_message.id,difficulty)
+        else:
+            await message.respond(f"無效的難度，難度需大於1({difficulty})")
+
+    
     
 
 def setup(bot:discord.Bot):

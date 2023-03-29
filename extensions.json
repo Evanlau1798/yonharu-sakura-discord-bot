@@ -1,4 +1,5 @@
 [
     "extensions.main_commands",
-    "extensions.music_commands"
+    "extensions.music_commands",
+    "extensions.event"
 ]
