@@ -1,15 +1,12 @@
 import discord
 import logger
 import json
-import os
-
-PATH = os.path.join(os.path.dirname(__file__))
 
 #==================載入機器人本體==================
 class mainBot(discord.Bot):
-    def __init__(self):
-        super().__init__()
-        self.debug_guilds = [912688935363305484]
+    def __init__(self, intents):
+        super().__init__(intents=intents)
+        #self.debug_guilds = [912688935363305484]
 
     async def on_ready(self):
         self.loadButton()
@@ -20,15 +17,18 @@ class mainBot(discord.Bot):
         return
 
 if __name__ == "__main__":
-    bot = mainBot()
-    import phone    
+    intents = discord.Intents.default()
+    intents.message_content = True
+    intents.messages = True
+    intents.typing = True
+    bot = mainBot(intents=intents)
 
-    with open(f"{PATH}/extensions.json", mode="r", encoding='utf-8') as extensions:
+    with open("./extensions.json", mode="r", encoding='utf-8') as extensions:
         extensions = json.load(extensions)
 
     for extension in extensions:
         bot.load_extension(extension)
     
-    with open(f"{PATH}/discord_key") as f:
+    with open("./discord_key") as f:
         bot.run(str(f.read()))
         f.close()

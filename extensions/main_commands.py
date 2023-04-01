@@ -272,28 +272,6 @@ class MainCommands(commands.Cog):
         embed = SakuraEmbedMsg(title="擲骰子",description=f"您擲到了{random.choice(range(min_number,max_number))}")
         await message.respond(embed=embed)
 
-    @commands.slash_command(description="查看本伺服器總字數排名")
-    async def leaderboard(self,message: discord.ApplicationContext):
-        name=str(message.author)
-        guild=int(message.guild.id)
-        tmp = count.rank_query(name, guild)
-        file = discord.File(f"./rank_tmp/{str(guild)}.png", filename="rank.png")
-        if len(tmp) != 0:
-            embed = SakuraEmbedMsg(title=f"{str(message.guild)}的伺服器總字數排名")
-            embed.set_image(url=f"attachment://rank.png")
-            await message.respond(embed=embed, file=file)
-            os.remove(f"./rank_tmp/{str(guild)}.png")
-            return
-        else:
-            await message.respond("這裡居然沒有人講過話...", ephemeral=True)
-            return
-        
-    @commands.slash_command(description="查看個人伺服器總字數排名")
-    @option("name", type=type.user, description="標記以查詢指定帳號", required=False)
-    async def rank(self,message: discord.ApplicationContext,name=None):
-        embed = SakuraEmbedMsg()
-        await message.respond(embed=count.user_rank_query(name=name, guild=int(message.guild.id),message=message, embed=embed))
-
     @commands.slash_command(description="把人ban不見")
     @option("member", type=type.user, description="標記以指定帳號", required=False)
     @option("reason", type=type.string, description="原因", required=False)
