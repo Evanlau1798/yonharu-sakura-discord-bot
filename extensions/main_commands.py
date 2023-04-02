@@ -15,7 +15,7 @@ import pixivpy3
 import random
 from bs4 import BeautifulSoup
 from utils.EmbedMessage import SakuraEmbedMsg
-from utils.word_count import count
+from word_count import count
 from utils.game import game
 
 PATH = os.path.join(os.path.dirname(__file__))

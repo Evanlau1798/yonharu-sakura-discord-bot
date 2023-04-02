@@ -1,12 +1,11 @@
 import random
-from threading import Thread
 from datetime import datetime,timezone,timedelta
 import discord
 import sqlite3
 import time
-import math
+import cv2
+from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 import numpy as np
-
 
 class WordCounter(object):
     def __init__(self):
@@ -37,19 +36,18 @@ class WordCounter(object):
         xp = xp + random.randint(15,35)
         self.word_countDB_cursor.execute(f'UPDATE Count SET XP = {xp}, Name = "{name}", Last_Msg = "{int(time.time())}" WHERE ID = {id} AND Guild = {guild}')
         self.word_countDB.commit()
-        print("addXp",xp)
     
     def getLevel(self,user:discord.User,guild:int) -> int:
         xp = self.word_countDB_cursor.execute(f"SELECT XP from Count where ID = {user.id} and Guild = {guild}").fetchone()[0]
         if xp == None:
-            raise ValueError
-        level = (-27 + math.sqrt(729 + 24 * xp / 5)) / 6 # 目前的等級
-        xp_current_level = 5 * level * level + 27 * level # 該等級需要的經驗值
-        xp_next_level = 5 * (level + 1) * (level + 1) + 27 * (level + 1) # 下一等級需要的經驗值
-        level = int(level)
-        xp_current_level = int(xp_current_level)
-        xp_next_level = int(xp_next_level)
-        return level,xp_current_level,xp_next_level
+            raise ValueError("該使用者為機器人或沒有說過任何一句話")
+        level = 0
+        rank_xp = 100
+        while xp >= rank_xp:
+            level += 1
+            xp -= rank_xp
+            rank_xp *= 1.1
+        return level,int(xp),int(rank_xp)
 
     def newUser(self,message: discord.Message):
         print("New User")
@@ -59,21 +57,41 @@ class WordCounter(object):
         xp = random.randint(15,35)
         last_msg = int(time.time())
         x = (name,id,guild,xp,last_msg)
-        self.word_countDB_cursor.execute("INSERT INTO Count VALUES(?,?,?,?,?)",x)
+        self.word_countDB_cursor.execute("INSERT OR IGNORE INTO Count VALUES(?,?,?,?,?)",x)
         self.word_countDB.commit()
         return
 
     def drawProgressBar(self,min,max) -> str:
-        progress = int(np.around(min / max,decimals=2) * 40)
-        print(progress)
-        bar = "("
-        for i in range(progress):
-            bar += "/"
-        for i in range(40 - progress):
-            bar += "-"
-        bar += ")"
-        print(bar)
-        return str(bar)
+        progress = round(min / max, 2)
+        filled = round(progress * 40)
+        bar = "[" + "".join(["/" for _ in range(filled)]) + "".join(["-" for _ in range(40 - filled)]) + "]"
+        return bar
+    
+    def drawGuildRankQuery(self,message: discord.Message):
+        img = cv2.imread(f'./media/rank.png', cv2.IMREAD_UNCHANGED)
+        rank_list = self.word_countDB_cursor.execute(f"SELECT Name,XP from Count where Guild = {message.guild.id} ORDER BY XP DESC LIMIT 10;").fetchall()
+        if len(rank_list) != 0:
+            for i,x in zip(rank_list,range(19,919,90)):
+                img = self.cv2ImgAddText(img,str(i[0]),110,x,"black")
+                img = self.cv2ImgAddText(img,str(i[1]),540,x,"black")
+            cv2.imwrite(f'./rank_tmp/{message.guild.id}.png', img)
+            print(rank_list)
+            return True
+        else:
+            return False
+    
+    def cv2ImgAddText(self,img, text, left, top,color):
+        if (isinstance(img, np.ndarray)):
+            img = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2BGRA))
+        draw = ImageDraw.Draw(img)
+        fontStyle = ImageFont.truetype(f"./font/Iansui094-Regular.ttf", 35, encoding="utf-8")
+        if fontStyle.getsize(text)[0] > 390:
+            for i in range(len(list(text))+1,0,-1):
+                if fontStyle.getsize(text[:i])[0] < 400:
+                    text=str(text[:i]) + "..."
+                    break
+        draw.text((left, top), text, color, font=fontStyle)
+        return cv2.cvtColor(np.asarray(img), cv2.COLOR_BGR2BGRA)
 
     def print_ctx(self,message: discord.Message):
         dt1 = datetime.utcnow().replace(tzinfo=timezone.utc)
