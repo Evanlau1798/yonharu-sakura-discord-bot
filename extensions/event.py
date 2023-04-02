@@ -18,7 +18,7 @@ class EventsListener(commands.Cog):
         if user == None:
             user = message.author
         embed = SakuraEmbedMsg()
-        embed.set_author(name=message.author.display_name + "#" + message.author.discriminator,icon_url=user.display_avatar.url)
+        embed.set_author(name=user.display_name + "#" + user.discriminator,icon_url=user.display_avatar.url)
         try:
             (level,xp_current_level,xp_next_level) = self.conv.getLevel(user,message.guild.id)
             embed.add_field(name="等級為",value=str(level),inline=False)

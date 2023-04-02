@@ -41,7 +41,7 @@ class WordCounter(object):
         xp = self.word_countDB_cursor.execute(f"SELECT XP from Count where ID = {user.id} and Guild = {guild}").fetchone()[0]
         if xp == None:
             raise ValueError("該使用者為機器人或沒有說過任何一句話")
-        level = 0
+        level = 1
         rank_xp = 100
         while xp >= rank_xp:
             level += 1
