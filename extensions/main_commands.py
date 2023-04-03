@@ -8,7 +8,7 @@ from random import choice
 import time
 from datetime import datetime
 import os
-import help
+import utils.help as help
 from googletrans import Translator
 import requests
 import pixivpy3
@@ -30,14 +30,6 @@ class MainCommands(commands.Cog):
     @commands.slash_command(description="ping")
     async def ping(self, message: discord.ApplicationContext):
         await message.respond(f"延遲:{round(self.bot.latency*1000)}ms")
-
-    @commands.slash_command(description="查看可用指令")
-    @option("page", type=type.string, description="輸入要設定的身分組", required=True,choices=['一般指令','音樂相關指令','管理員專用指令','額外指令','額外功能'])
-    async def help(self,message: discord.ApplicationContext,page='一般指令'):
-        embed = discord.Embed(title="機器人指令使用說明", description="讓您了解如何活用我的力量!", color=0xd98d91)
-        #file = discord.File(f"{PATH}/media/introduction.jpg", filename="introduction.jpg")
-        embed = help.help(embed, page=page)
-        await message.respond(embed=embed, ephemeral=True)#,file=file)
 
     @commands.slash_command(description="翻譯任何語言至繁體中文(吧?")
     @option("text", type=type.string, description="欲翻譯的文字", required=True)
@@ -363,8 +355,12 @@ class MainCommands(commands.Cog):
         else:
             await message.respond(f"無效的難度，難度需大於1({difficulty})")
 
-    
-    
+    @commands.slash_command(description="查看可用指令")
+    async def help(self,message: discord.ApplicationContext):
+        embed = SakuraEmbedMsg(title="指令使用說明", description="讓您了解如何活用我的力量!")
+        view = help.HelpView()
+        view.set_message(await message.respond(embed=embed, view=view, ephemeral=True))
+
 
 def setup(bot:discord.Bot):
     bot.add_cog(MainCommands(bot))

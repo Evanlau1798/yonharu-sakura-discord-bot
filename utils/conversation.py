@@ -82,7 +82,6 @@ class WordCounter(object):
                 img = self.cv2ImgAddText(img,str(i[0]),110,x,"black")
                 img = self.cv2ImgAddText(img,str(i[1]),580,x,"black")
             cv2.imwrite(f'./rank_tmp/{message.guild.id}.png', img)
-            print(rank_list)
             return True
         else:
             return False
@@ -109,22 +108,3 @@ class WordCounter(object):
         except:
             conv=str(message.author)+'於'+str(ticks)+'在'+str(message.channel)+'說:'+str(message.content)
         print(conv)
-
-class HelpView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-        self.options = ['一般指令','音樂相關指令','管理員專用指令','額外指令','額外功能']
-        options = ["/game,/create,/leaderboard,/rank,/pool等指令",
-                   "/resume,/play,/stop等指令",
-                   "/vcset,/vcdel,/dvcset,/kick,/ban等指令",
-                   "/ping,/roll等指令",
-                   "額外的指令功能"]
-        self.select = discord.ui.Select(placeholder="請選擇選項",options=options)
-        self.select.callback = self.select_callback
-        self.add_item(self.select)
-
-    def set_message(self,message: discord.Interaction):
-        self.EphemeralMessage = message
-
-    async def select_callback(self, interaction: discord.Interaction):
-        await interaction.response.defer()

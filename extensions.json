@@ -1,5 +1,5 @@
 [
     "extensions.main_commands",
     "extensions.music_commands",
-    "extensions.event"
+    "extensions.message_events"
 ]

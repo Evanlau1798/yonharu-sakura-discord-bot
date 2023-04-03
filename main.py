@@ -1,6 +1,7 @@
 import discord
 import logger
 import json
+import os
 
 #==================載入機器人本體==================
 class mainBot(discord.Bot):
@@ -10,10 +11,12 @@ class mainBot(discord.Bot):
 
     async def on_ready(self):
         self.loadButton()
+        print("done")
         print(f"目前使用者:{bot.user}")
 
-    def loadButton(self):
-        #views新增區
+    def loadButton(self): #views新增區
+        from utils.help import HelpView
+        bot.add_view(HelpView())
         return
 
 if __name__ == "__main__":
@@ -22,6 +25,9 @@ if __name__ == "__main__":
     intents.messages = True
     intents.typing = True
     bot = mainBot(intents=intents)
+
+    if not os.path.exists("rank_tmp"):
+        os.makedirs("rank_tmp")
 
     with open("./extensions.json", mode="r", encoding='utf-8') as extensions:
         extensions = json.load(extensions)
