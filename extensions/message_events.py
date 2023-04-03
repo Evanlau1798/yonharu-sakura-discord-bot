@@ -5,11 +5,13 @@ from discord import SlashCommandOptionType as type
 from utils.EmbedMessage import SakuraEmbedMsg
 from utils.conversation import WordCounter
 import os
+from utils.personal_commands import PsCommands
 
 class EventsListener(commands.Cog):
     def __init__(self, bot:discord.Bot):
         self.bot = bot
         self.conv = WordCounter()
+        self.ps_commands = PsCommands(bot=self.bot)
 
     @commands.slash_command(description="查看個人伺服器總字數排名")
     @option("user", type=type.user, description="標記以查詢指定帳號", required=False)
@@ -48,6 +50,8 @@ class EventsListener(commands.Cog):
         if message.author.bot == True:  # 排除自己的訊息
             return
         await self.conv.analyzeText(message=message)
+        if message.content.startswith('!'):  # 個人指令判斷
+            await self.ps_commands.select_commands(message=message)
 
 def setup(bot:discord.Bot):
     bot.add_cog(EventsListener(bot))
