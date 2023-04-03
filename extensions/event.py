@@ -20,7 +20,7 @@ class EventsListener(commands.Cog):
         embed = SakuraEmbedMsg()
         embed.set_author(name=user.display_name + "#" + user.discriminator,icon_url=user.display_avatar.url)
         try:
-            (level,xp_current_level,xp_next_level) = self.conv.getLevel(user,message.guild.id)
+            (level,xp_current_level,xp_next_level) = self.conv.getRank(user,message.guild.id)
             embed.add_field(name="等級為",value=str(level),inline=False)
             embed.add_field(name=f"經驗值:({xp_current_level}/{xp_next_level})",value=self.conv.drawProgressBar(xp_current_level,xp_next_level),inline=False)
         except:
@@ -31,7 +31,7 @@ class EventsListener(commands.Cog):
     async def leaderboard(self,message: discord.ApplicationContext):
         await message.defer()
         if self.conv.drawGuildRankQuery(message=message):
-            embed = SakuraEmbedMsg(title=f"{str(message.guild.name)}的伺服器總字數排名")
+            embed = SakuraEmbedMsg(title=f"{str(message.guild.name)}的伺服器等級排名")
             file = discord.File(f"./rank_tmp/{str(message.guild.id)}.png", filename="rank.png")
             embed.set_image(url=f"attachment://rank.png")
             await message.respond(embed=embed, file=file)
