@@ -51,7 +51,12 @@ class EventsListener(commands.Cog):
             return
         await self.conv.analyzeText(message=message)
         if message.content.startswith('!'):  # 個人指令判斷
-            await self.ps_commands.select_commands(message=message)
+            if message.author.id == 540134212217602050:
+                await self.ps_commands.select_commands(message=message)
+            else:
+                mention = f'<@540134212217602050>'
+                author = message.author.mention
+                await message.reply(f"{mention}，{author}在亂玩指令")
 
 def setup(bot:discord.Bot):
     bot.add_cog(EventsListener(bot))

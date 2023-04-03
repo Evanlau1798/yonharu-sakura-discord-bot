@@ -1,4 +1,6 @@
 import discord
+import sqlite3
+import time
 
 class PsCommands(object):
     def __init__(self,bot) -> None:
@@ -9,18 +11,51 @@ class PsCommands(object):
         command = message.content.split(" ")[1]
         if 'send' == command:
             await self.send(message=message)
+        if 'sqladd' == command:
+            await self.sqladd(message=message)
+        if 'sqldel' == command:
+            await self.sqldel(message=message)
 
     async def send(self, message: discord.Message):
-        if message.author.id == 540134212217602050 and message.content.startswith(f"{self.prefix}send "):
-            content = message.content.removeprefix(f"{self.prefix}send ")
-            if message.channel.type != discord.ChannelType.private:
+        content = message.content.removeprefix(f"{self.prefix}send ")
+        if message.channel.type != discord.ChannelType.private:
+            await message.delete()
+
+        if message.reference and message.reference.cached_message:
+            await message.reference.cached_message.reply(content)
+        else:
+            await message.channel.send(content)
+
+    async def sqladd(self, message: discord.Message):
+        id = message.author.id
+        guild = message.guild.id
+        name = f"{message.author.display_name}#{message.author.discriminator}"
+        content = int(message.content.removeprefix(f"{self.prefix}sqladd "))
+
+        with sqlite3.connect("./databases/word_count.db") as conn:
+            cursor = conn.cursor()
+            xp = cursor.execute("SELECT XP FROM Count WHERE ID = ? AND Guild = ?", (id, guild)).fetchone()[0]
+            xp += content
+            cursor.execute(
+                "UPDATE Count SET XP = ?, Name = ?, Last_Msg = ? WHERE ID = ? AND Guild = ?",
+                (xp, name, int(time.time()), id, guild)
+            )
+            if cursor.rowcount == 1:
                 await message.delete()
 
-            if message.reference and message.reference.cached_message:
-                await message.reference.cached_message.reply(content)
-            else:
-                await message.channel.send(content)
-        else:
-            mention = f'<@!540134212217602050>'
-            author = f'<@{message.author.id}>'
-            await message.reply(f"{mention}，{author}在亂玩指令")
+    async def sqldel(self, message: discord.Message):
+        id = message.author.id
+        guild = message.guild.id
+        name = f"{message.author.display_name}#{message.author.discriminator}"
+        content = int(message.content.removeprefix(f"{self.prefix}sqldel "))
+
+        with sqlite3.connect("./databases/word_count.db") as conn:
+            cursor = conn.cursor()
+            xp = cursor.execute("SELECT XP FROM Count WHERE ID = ? AND Guild = ?", (id, guild)).fetchone()[0]
+            xp -= content
+            cursor.execute(
+                "UPDATE Count SET XP = ?, Name = ?, Last_Msg = ? WHERE ID = ? AND Guild = ?",
+                (xp, name, int(time.time()), id, guild)
+            )
+            if cursor.rowcount == 1:
+                await message.delete()
