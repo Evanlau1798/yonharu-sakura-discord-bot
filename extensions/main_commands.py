@@ -32,11 +32,32 @@ class MainCommands(commands.Cog):
         await message.respond(f"延遲:{round(self.bot.latency*1000)}ms")
 
     @commands.slash_command(description="翻譯任何語言至繁體中文(吧?")
-    @option("text", type=type.string, description="欲翻譯的文字", required=True)
-    async def trans(self,message: discord.ApplicationContext,text):
-        output = translator.translate(text, dest='zh-tw').text
-        await message.respond(f'翻譯:{output}')
-        return
+    @option("text", type=type.string, description="欲翻譯的文字", required=False)
+    @option("url", type=type.string, description="欲翻譯的discord文字連結", required=False)
+    async def trans(self,message: discord.ApplicationContext, text=None, url: str=None):
+        if text != None:
+            output = translator.translate(text, dest='zh-tw').text
+            embed = SakuraEmbedMsg()
+            embed.add_field(name="原文",value=text,inline=False)
+            embed.add_field(name="翻譯",value=output,inline=False)
+            await message.respond(embed=embed)
+            return
+        elif url != None and "https://discord.com/channels/" in url:
+            raw_url = url.split("/")
+            channel = int(raw_url[len(raw_url) - 2])
+            msg_id = int(raw_url[len(raw_url) - 1])
+            channel = self.bot.get_channel(channel)
+            msg = await channel.fetch_message(msg_id)
+            output = translator.translate(msg.content, dest='zh-tw').text
+            embed = SakuraEmbedMsg()
+            name = msg.author.display_name + "#" + msg.author.discriminator
+            embed.add_field(name="原文",value=msg.content,inline=False)
+            embed.add_field(name="翻譯",value=output,inline=False)
+            embed.set_author(name=name, icon_url=msg.author.display_avatar.url,url=url)
+            await message.respond(embed=embed, ephemeral=True)
+            return
+        else:
+            await message.respond(embed = SakuraEmbedMsg(title="錯誤",description="請至少輸入一個翻譯來源"), ephemeral=True)
     
     @commands.slash_command(description="查詢指定地區")
     @option("weather", type=type.string, description="請輸入欲查詢的地區", required=True)
