@@ -24,6 +24,8 @@ if __name__ == "__main__":
     intents.message_content = True
     intents.messages = True
     intents.typing = True
+    intents.voice_states = True
+    intents.members = True
     bot = mainBot(intents=intents)
 
     if not os.path.exists("rank_tmp"):

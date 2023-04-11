@@ -7,10 +7,10 @@ import cv2
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 
-class WordCounter(object):
+class XPCounter(object):
     def __init__(self):
-        self.word_countDB = sqlite3.connect(f"./databases/word_count.db")
-        self.word_countDB_cursor = self.word_countDB.cursor()
+        self.XPCounter_DB = sqlite3.connect(f"./databases/XPCount.db")
+        self.XPCounter_DB_cursor = self.XPCounter_DB.cursor()
 
     async def analyzeText(self,message: discord.Message):
         self.print_ctx(message=message)
@@ -21,7 +21,7 @@ class WordCounter(object):
     def checkLastMsg(self,message: discord.Message) -> bool:
         id = message.author.id
         guild = message.guild.id
-        output = self.word_countDB_cursor.execute(f"SELECT Last_Msg from Count where ID = {id} and Guild = {guild}").fetchone()
+        output = self.XPCounter_DB_cursor.execute(f"SELECT LastMsg from TextChannelXP where ID = {id} and Guild = {guild}").fetchone()
         if output == None:
             self.newUser(message=message)
         elif int(time.time()) - int(output[0]) < 60:
@@ -32,10 +32,10 @@ class WordCounter(object):
         id = message.author.id
         guild = message.guild.id
         name = message.author.display_name + "#" + message.author.discriminator
-        xp = self.word_countDB_cursor.execute(f"SELECT XP from Count where ID = {id} and Guild = {guild}").fetchone()[0]
+        xp = self.XPCounter_DB_cursor.execute(f"SELECT XP from TextChannelXP where ID = {id} and Guild = {guild}").fetchone()[0]
         xp = xp + random.randint(15,35)
-        self.word_countDB_cursor.execute(f'UPDATE Count SET XP = {xp}, Name = "{name}", Last_Msg = "{int(time.time())}" WHERE ID = {id} AND Guild = {guild}')
-        self.word_countDB.commit()
+        self.XPCounter_DB_cursor.execute(f'UPDATE TextChannelXP SET XP = {xp}, Name = "{name}", LastMsg = "{int(time.time())}" WHERE ID = {id} AND Guild = {guild}')
+        self.XPCounter_DB.commit()
     
     def getLevel(self,xp) -> int:
         level = 1
@@ -47,7 +47,7 @@ class WordCounter(object):
         return level,int(xp),int(rank_xp)
     
     def getRank(self,user:discord.User,guild:int):
-        xp = int(self.word_countDB_cursor.execute(f"SELECT XP from Count where ID = {user.id} and Guild = {guild}").fetchone()[0])
+        xp = int(self.XPCounter_DB_cursor.execute(f"SELECT XP from TextChannelXP where ID = {user.id} and Guild = {guild}").fetchone()[0])
         if xp == None:
             raise ValueError("該使用者為機器人或沒有說過任何一句話")
         level,cur_xp,rank_xp = self.getLevel(xp)
@@ -61,9 +61,37 @@ class WordCounter(object):
         xp = random.randint(15,35)
         last_msg = int(time.time())
         x = (name,id,guild,xp,last_msg)
-        self.word_countDB_cursor.execute("INSERT OR IGNORE INTO Count VALUES(?,?,?,?,?)",x)
-        self.word_countDB.commit()
+        self.XPCounter_DB_cursor.execute("INSERT OR IGNORE INTO TextChannelXP VALUES(?,?,?,?,?)",x)
+        self.XPCounter_DB.commit()
         return
+    
+    def getVoiceRank(self,user:discord.User,guild:int):
+        xp = int(self.XPCounter_DB_cursor.execute(f"SELECT XP from VoiceChannelXP where ID = {user.id} and Guild = {guild}").fetchone()[0])
+        if xp == None:
+            raise ValueError("該使用者為機器人或沒有進過任何一個語音頻道")
+        level,cur_xp,rank_xp = self.getLevel(xp)
+        return level,cur_xp,rank_xp
+
+    def newVoiceUser(self,user:discord.User,guild:discord.Guild):
+        print("New Voice User")
+        name = user.display_name + "#" + user.discriminator
+        id = user.id
+        guild = guild.id
+        xp = 1
+        x = (name,id,guild,xp)
+        self.XPCounter_DB_cursor.execute("INSERT OR IGNORE INTO VoiceChannelXP VALUES(?,?,?,?)",x)
+        self.XPCounter_DB.commit()
+        return
+    
+    def addVoiceXP(self,user:discord.User,guild:discord.Guild):
+        name = user.display_name + "#" + user.discriminator
+        id = user.id
+        guild_id = guild.id
+        if self.XPCounter_DB_cursor.execute(f"SELECT * from VoiceChannelXP where ID = {id} and Guild = {guild_id}").fetchone() == None:
+            self.newVoiceUser(user=user,guild=guild)
+        xp = self.XPCounter_DB_cursor.execute(f"SELECT XP from VoiceChannelXP where ID = {id} and Guild = {guild_id}").fetchone()[0]
+        xp = xp + random.randint(15,25)
+        self.XPCounter_DB_cursor.execute(f'UPDATE VoiceChannelXP SET XP = {xp}, Name = "{name}" WHERE ID = {id} AND Guild = {guild_id}')
 
     def drawProgressBar(self,min,max) -> str:
         progress = round(min / max, 2)
@@ -71,9 +99,9 @@ class WordCounter(object):
         bar = "[" + "".join(["/" for _ in range(filled)]) + "".join(["-" for _ in range(40 - filled)]) + "]"
         return bar
     
-    def drawGuildRankQuery(self,message: discord.Message):
+    def drawGuildRankQuery(self,message: discord.Message,type:str):
         img = cv2.imread(f'./media/rank.png', cv2.IMREAD_UNCHANGED)
-        rank_list = self.word_countDB_cursor.execute(f"SELECT Name,XP from Count where Guild = {message.guild.id} ORDER BY XP DESC LIMIT 10;").fetchall()
+        rank_list = self.XPCounter_DB_cursor.execute(f"SELECT Name,XP from {type} where Guild = {message.guild.id} ORDER BY XP DESC LIMIT 10;").fetchall()
         rank_list = [list(x) for x in rank_list]       
         for i in range(len(rank_list)):
                 rank_list[i][1] = f"Lv.{str(self.getLevel(rank_list[i][1])[0])}"
