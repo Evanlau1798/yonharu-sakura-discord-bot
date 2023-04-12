@@ -78,7 +78,8 @@ class EventsListener(commands.Cog):
             for guild in self.bot.guilds:
                 for channel in guild.voice_channels:
                     for user in channel.members:
-                        self.conv.addVoiceXP(user=user,guild=guild)
+                        if user.bot == False:
+                            self.conv.addVoiceXP(user=user,guild=guild)
             if self.conv.XPCounter_DB.in_transaction:
                 self.conv.XPCounter_DB.commit()
 
