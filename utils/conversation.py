@@ -37,14 +37,14 @@ class XPCounter(object):
         self.XPCounter_DB_cursor.execute(f'UPDATE TextChannelXP SET XP = {xp}, Name = "{name}", LastMsg = "{int(time.time())}" WHERE ID = {id} AND Guild = {guild}')
         self.XPCounter_DB.commit()
     
-    def getLevel(self,xp) -> int:
+    def getLevel(self,xp):
         level = 1
         rank_xp = 100
         while xp >= rank_xp:
             level += 1
             xp -= rank_xp
-            rank_xp *= 1.1
-        return level,int(xp),int(rank_xp)
+            rank_xp = 3 * level ** 2 + 50 * level + 100
+        return level, int(xp), int(rank_xp)
     
     def getRank(self,user:discord.User,guild:int):
         xp = int(self.XPCounter_DB_cursor.execute(f"SELECT XP from TextChannelXP where ID = {user.id} and Guild = {guild}").fetchone()[0])

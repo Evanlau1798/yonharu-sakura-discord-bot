@@ -32,12 +32,12 @@ class PsCommands(object):
         name = f"{message.author.display_name}#{message.author.discriminator}"
         content = int(message.content.removeprefix(f"{self.prefix}sqladd "))
 
-        with sqlite3.connect("./databases/word_count.db") as conn:
+        with sqlite3.connect("./databases/XPCount.db") as conn:
             cursor = conn.cursor()
-            xp = cursor.execute("SELECT XP FROM Count WHERE ID = ? AND Guild = ?", (id, guild)).fetchone()[0]
+            xp = cursor.execute("SELECT XP FROM TextChannelXP WHERE ID = ? AND Guild = ?", (id, guild)).fetchone()[0]
             xp += content
             cursor.execute(
-                "UPDATE Count SET XP = ?, Name = ?, Last_Msg = ? WHERE ID = ? AND Guild = ?",
+                "UPDATE TextChannelXP SET XP = ?, Name = ?, LastMsg = ? WHERE ID = ? AND Guild = ?",
                 (xp, name, int(time.time()), id, guild)
             )
             if cursor.rowcount == 1:
@@ -49,12 +49,12 @@ class PsCommands(object):
         name = f"{message.author.display_name}#{message.author.discriminator}"
         content = int(message.content.removeprefix(f"{self.prefix}sqldel "))
 
-        with sqlite3.connect("./databases/word_count.db") as conn:
+        with sqlite3.connect("./databases/XPCount.db") as conn:
             cursor = conn.cursor()
-            xp = cursor.execute("SELECT XP FROM Count WHERE ID = ? AND Guild = ?", (id, guild)).fetchone()[0]
+            xp = cursor.execute("SELECT XP FROM TextChannelXP WHERE ID = ? AND Guild = ?", (id, guild)).fetchone()[0]
             xp -= content
             cursor.execute(
-                "UPDATE Count SET XP = ?, Name = ?, Last_Msg = ? WHERE ID = ? AND Guild = ?",
+                "UPDATE TextChannelXP SET XP = ?, Name = ?, LastMsg = ? WHERE ID = ? AND Guild = ?",
                 (xp, name, int(time.time()), id, guild)
             )
             if cursor.rowcount == 1:
