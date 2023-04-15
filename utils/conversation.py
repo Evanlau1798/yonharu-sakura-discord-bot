@@ -37,7 +37,7 @@ class XPCounter(object):
         self.XPCounter_DB_cursor.execute(f'UPDATE TextChannelXP SET XP = {xp}, Name = "{name}", LastMsg = "{int(time.time())}" WHERE ID = {id} AND Guild = {guild}')
         self.XPCounter_DB.commit()
     
-    def getLevel(self,xp):
+    def getLevel(self,xp) -> int:
         level = 1
         rank_xp = 100
         while xp >= rank_xp:

@@ -11,10 +11,15 @@ class PsCommands(object):
         command = message.content.split(" ")[1]
         if 'send' == command:
             await self.send(message=message)
+            return True
         if 'sqladd' == command:
             await self.sqladd(message=message)
+            return True
         if 'sqldel' == command:
             await self.sqldel(message=message)
+            return True
+        else:
+            return False
 
     async def send(self, message: discord.Message):
         content = message.content.removeprefix(f"{self.prefix}send ")
