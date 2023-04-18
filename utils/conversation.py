@@ -43,7 +43,7 @@ class XPCounter(object):
         while xp >= rank_xp:
             level += 1
             xp -= rank_xp
-            rank_xp = 3 * level ** 2 + 50 * level + 100
+            rank_xp = 4 * level ** 2 + 50 * level + 200
         return level, int(xp), int(rank_xp)
     
     def getRank(self,user:discord.User,guild:int):

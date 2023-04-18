@@ -122,30 +122,6 @@ class MainCommands(commands.Cog):
         embed.set_author(name=illust.title)
         await message.respond(embed=embed)
         
-    @commands.slash_command(description="取消動態語音創建用文字頻道")
-    @default_permissions(administrator=True)
-    async def vcdel(self,message: discord.ApplicationContext):
-        id = str(message.channel.id)
-        if message.author.guild_permissions.manage_channels or str(message.author.id) == '540134212217602050':
-            c = open(f'{PATH}/channelID/T_ChannelID.txt', 'r')
-            temp = eval(c.read())
-            c.close()
-            if str(id) in str(id):
-                channel = self.bot.get_channel(int(id))
-                if channel != None:
-                    f = open(f'{PATH}/channelID/T_ChannelID.txt', 'w')
-                    temp.remove(id)
-                    f.write(str(temp))
-                    f.close()
-                    await message.respond(f'刪除{channel.name}成功')
-                    return
-                else:
-                    await message.respond('未找到此頻道', ephemeral=True)
-                    return
-        else:
-            await message.respond('您沒有權限執行此操作', ephemeral=True)
-            return
-        
     @commands.slash_command(description="有問題就問問我吧！我可以幫你解答的😆")
     @option("question", type=type.string, description="請輸入您想問的問題", required=True)
     async def pool(self,message: discord.ApplicationContext,question):

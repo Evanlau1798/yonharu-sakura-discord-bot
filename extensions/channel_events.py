@@ -100,6 +100,22 @@ class EventsListener(commands.Cog):
         else:
             await message.respond(embed=SakuraEmbedMsg("錯誤","此頻道已登記"), ephemeral=True)
         return
+    
+    @commands.slash_command(description="取消設定動態語音頻道")
+    @option("channel", type=type.channel, description="選擇欲取消的頻道", required=True)
+    @default_permissions(administrator=True)
+    async def vcdel(self,message: discord.ApplicationContext,channel):
+        if channel.type == discord.ChannelType.voice and self.channels_DB_cursor.execute(f"SELECT * FROM DynamicVoiceChannel WHERE ChannelID = {message.channel.id}").fetchone():
+            self.channels_DB_cursor.execute("DELETE FROM DynamicVoiceChannel WHERE ChannelID = ?",(channel.id,))
+            self.channels_DB.commit()
+            await message.respond(embed=SakuraEmbedMsg("成功",f"已取消登記該頻道\n頻道為:{channel.mention}"), ephemeral=True)
+        elif channel.type == discord.ChannelType.text and self.channels_DB_cursor.execute(f"SELECT * FROM TextChannel WHERE ChannelID = {message.channel.id}").fetchone():
+            self.channels_DB_cursor.execute("DELETE FROM TextChannel WHERE ChannelID = ?",(channel.id,))
+            self.channels_DB.commit()
+            await message.respond(embed=SakuraEmbedMsg("成功",f"已取消登記該頻道\n頻道為:{channel.mention}"), ephemeral=True)
+        else:
+            await message.respond(embed=SakuraEmbedMsg("錯誤","此頻道不存在於資料庫內"), ephemeral=True)
+        return
 
     @commands.Cog.listener()
     async def on_message(self, message:discord.Message):
