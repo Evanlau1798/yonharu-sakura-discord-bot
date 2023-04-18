@@ -121,62 +121,6 @@ class MainCommands(commands.Cog):
         embed.set_image(url=url)
         embed.set_author(name=illust.title)
         await message.respond(embed=embed)
-
-    @commands.slash_command(description="創建語音頻道")
-    @option("name", type=type.string, description="頻道名稱", required=True)
-    @option("num", type=type.integer, description="設定頻道人數(預設為不設限)", required=False)
-    async def create(self,message: discord.ApplicationContext,name,num=0):
-        voice = message.guild.voice_channels
-        c = open(f'{PATH}/channelID/T_ChannelID.txt', 'r')
-        temp = eval(c.read())
-        if str(message.channel.id) in str(temp):
-            print('相符')
-        else:
-            await message.respond('這個頻道無法使用此指令喔', ephemeral=True)
-            return
-        c.close()
-        for i in voice[:len(voice)]:
-            if str(i) == str(name):
-                await message.respond('此頻道已存在', ephemeral=True)
-                return
-        await message.guild.create_voice_channel(name=name, category=message.channel.category, reason=None, user_limit=num)
-        await message.respond('頻道創建成功!')
-        voice = message.guild.voice_channels
-        for i in voice:
-            if str(name) == str(i):
-                f = open(f'{PATH}/channelID/V_ChannelID.txt', 'r')
-                temp = eval(f.read())
-                temp.append(str(i.id))
-                f.close()
-                t = open(f'{PATH}/channelID/V_ChannelID.txt', 'w')
-                t.write(str(temp))
-                t.close()
-
-    @commands.slash_command(description="設定目前的頻道為動態語音創建用文字頻道")
-    @default_permissions(administrator=True)
-    async def vcset(self,message: discord.ApplicationContext):
-        if message.author.guild_permissions.manage_channels or str(message.author.id) == '540134212217602050':
-            id=str(message.channel.id)
-            c = open(f'{PATH}/channelID/T_ChannelID.txt', 'r')
-            temp = eval(c.read())
-            c.close()
-            if str(id) in str(temp):
-                await message.respond('此頻道已登記', ephemeral=True)
-                return
-            channel = self.bot.get_channel(int(id))
-            if channel != None: 
-                f = open(f'{PATH}/channelID/T_ChannelID.txt', 'w')
-                temp.append(str(id))
-                f.write(str(temp))
-                f.close()
-                await message.respond(f'已設定{channel.name}為動態語音產生頻道', ephemeral=True)
-                return
-            else:
-                await message.respond('未找到此頻道', ephemeral=True)
-            return
-        else:
-            await message.respond('您沒有權限執行此操作', ephemeral=True)
-            return
         
     @commands.slash_command(description="取消動態語音創建用文字頻道")
     @default_permissions(administrator=True)
@@ -198,32 +142,6 @@ class MainCommands(commands.Cog):
                 else:
                     await message.respond('未找到此頻道', ephemeral=True)
                     return
-        else:
-            await message.respond('您沒有權限執行此操作', ephemeral=True)
-            return
-        
-    @commands.slash_command(description="設定指定的語音頻道為動態語音創建用語音頻道")
-    @option("channel", type=type.channel, description="頻道名稱", required=True)
-    @default_permissions(administrator=True)
-    async def dvcset(self,message: discord.ApplicationContext,channel:discord.VoiceChannel):
-        if message.author.guild_permissions.manage_channels or str(message.author.id) == '540134212217602050':
-            c = open(f'{PATH}/channelID/DV_ChannelID.txt', 'r')
-            temp = eval(c.read())
-            c.close()
-            if str(channel.id) in str(temp):
-                await message.respond('此頻道已登記', ephemeral=True)
-                return
-            channel = self.bot.get_channel(int(channel.id))
-            if channel != None:
-                f = open(f'{PATH}/channelID/DV_ChannelID.txt', 'w')
-                temp.append(str(channel.id))
-                f.write(str(temp))
-                f.close()
-                await message.respond(f'已設定{channel.name}為動態語音產生頻道', ephemeral=True)
-                return
-            else:
-                await message.respond('未找到此頻道', ephemeral=True)
-                return
         else:
             await message.respond('您沒有權限執行此操作', ephemeral=True)
             return
