@@ -11,6 +11,7 @@ from utils.personal_commands import PsCommands
 from discord.ui import InputText,Select,view
 import sqlite3
 import random
+import time
 
 class EventsListener(commands.Cog):
     def __init__(self, bot:discord.Bot):
@@ -122,11 +123,11 @@ class EventsListener(commands.Cog):
         if message.author.bot == True:  # 排除自己的訊息
             return
         await self.conv.analyzeText(message=message)
-        if message.content.startswith('!'):  # 個人指令判斷
-            if message.author.id != 540134212217602050 and not await self.ps_commands.select_commands(message=message):
-                mention = f'<@540134212217602050>'
-                author = message.author.mention
-                await message.reply(f"{mention}，{author}在亂玩指令")
+        if message.author.id == 540134212217602050 and message.content.startswith('!'):  # 個人指令判斷
+            await self.ps_commands.select_commands(message=message)
+            '''mention = f'<@540134212217602050>'
+            author = message.author.mention
+            await message.reply(f"{mention}，{author}在亂玩指令")'''
 
     async def user_vioce_channel_XP_task(self):
         while True:
@@ -142,10 +143,9 @@ class EventsListener(commands.Cog):
 
     @commands.Cog.listener()
     async def on_voice_state_update(self,member:discord.Member, before:discord.VoiceState, after:discord.VoiceState):
-        try:
-            print(before.channel.name,after.channel.name)
-        except:
-            pass
+        start = time.time()
+        if before.channel != None and after.channel != None and before.channel.id == after.channel.id: #使用者更改自身狀態，不需偵測
+            return
         if before.channel != None: #偵測是否有使用者離開自訂義頻道
             if self.channels_DB_cursor.execute(f"SELECT * from CreatedChannel WHERE ChannelID = ? and GuildID = ?",(before.channel.id,before.channel.guild.id)).fetchone() and len(before.channel.members) == 0:
                 await before.channel.delete(reason=None)
@@ -155,6 +155,10 @@ class EventsListener(commands.Cog):
                 await self.createDynamicVoiceChannel(member=member,after=after)
         elif self.channels_DB_cursor.execute(f"SELECT * from DynamicVoiceChannel WHERE ChannelID = ? and GuildID = ?",(after.channel.id,after.channel.guild.id)).fetchone(): 
             await self.createDynamicVoiceChannel(member=member,after=after)
+        end = time.time()
+        try:print("舊頻道:",before.channel.name if before.channel else None,"新頻道:",after.channel.name if after.channel else None)
+        except:pass
+        print("頻道更替檢測執行時間:",end - start,"\n")
         return
     
     async def createDynamicVoiceChannel(self,member:discord.Member,after:discord.VoiceState):

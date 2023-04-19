@@ -6,17 +6,17 @@ class PsCommands(object):
     def __init__(self,bot) -> None:
         self.bot = bot
         self.prefix = "! "
+        self.command_dict = {
+            "send": self.send,
+            "sqladd": self.sqladd,
+            "sqldel": self.sqldel
+        }
 
     async def select_commands(self,message: discord.Message):
         command = message.content.split(" ")[1]
-        if 'send' == command:
-            await self.send(message=message)
-            return True
-        if 'sqladd' == command:
-            await self.sqladd(message=message)
-            return True
-        if 'sqldel' == command:
-            await self.sqldel(message=message)
+        func = self.command_dict.get(command)
+        if func is not None:
+            await func(message=message)
             return True
         else:
             return False
@@ -25,7 +25,6 @@ class PsCommands(object):
         content = message.content.removeprefix(f"{self.prefix}send ")
         if message.channel.type != discord.ChannelType.private:
             await message.delete()
-
         if message.reference and message.reference.cached_message:
             await message.reference.cached_message.reply(content)
         else:

@@ -157,7 +157,7 @@ class MainCommands(commands.Cog):
                     Soup = BeautifulSoup(search_obj.text,'html.parser')
                     title = Soup.title.string.replace(" » nhentai: hentai doujinshi and manga","")
                     image = Soup.find("meta", itemprop="image").get('content')  
-                    embed = SakuraEmbedMsg(title=title, color=0xd98d91)
+                    embed = SakuraEmbedMsg(title=title)
                     embed.set_image(url=image)
                     embed.add_field(name="漫畫連結", value=url, inline=False)
                     await sended_message.edit_original_response(embed=embed,content="")
