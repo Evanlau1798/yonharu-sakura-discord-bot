@@ -125,9 +125,6 @@ class EventsListener(commands.Cog):
         await self.conv.analyzeText(message=message)
         if message.author.id == 540134212217602050 and message.content.startswith('!'):  # 個人指令判斷
             await self.ps_commands.select_commands(message=message)
-            '''mention = f'<@540134212217602050>'
-            author = message.author.mention
-            await message.reply(f"{mention}，{author}在亂玩指令")'''
 
     async def user_vioce_channel_XP_task(self):
         while True:
@@ -162,7 +159,10 @@ class EventsListener(commands.Cog):
         return
     
     async def createDynamicVoiceChannel(self,member:discord.Member,after:discord.VoiceState):
-        channelName = ['白喵一番屋桃喵店', '白喵一番屋竹喵店', '白喵一番屋中喵店', 'X50 Music Game Station']
+        channelName = ['白喵一番屋桃喵店', '白喵一番屋竹喵店', '白喵一番屋中喵店', 'X50 Music Game Station',
+                       'chunithm玩家專業模仿中心','maimai玩家專業模仿中心','廣三SOGO紅帽象','sdvx玩家專業模仿中心',
+                       '普羅洗腳玩家專業模仿中心','在此敲碗群主女裝',
+                       f'{member.name}的秀肌肉專區',f'{member.name}的自閉小黑屋',f'{member.name}的語音頻道',f'{member.name}大佬在此🛐',f'{member.name}的線上賭場開張囉']
         new_ch:discord.VoiceChannel = await after.channel.guild.create_voice_channel(name=random.choice(channelName),category=after.channel.category,reason=None)
         await member.move_to(channel=new_ch)
         channel_id = new_ch.id
