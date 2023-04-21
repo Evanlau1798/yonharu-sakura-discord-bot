@@ -1,5 +1,5 @@
 import discord
-from discord import default_permissions,option
+from discord import default_permissions,option,is_nsfw
 from discord import SlashCommandOptionType as type
 from discord.ext import commands,tasks
 from discord.commands import SlashCommandGroup
@@ -133,37 +133,35 @@ class MainCommands(commands.Cog):
 
     @commands.slash_command(description="開車囉!")
     @option("number", type=type.integer, description="以此數字搜索指定漫畫(0為隨機)", required=False)
+    @is_nsfw()
     async def n(self,message: discord.ApplicationContext,number=0):
         try:
-            if message.channel.is_nsfw() == True or str(message.author.id) == '540134212217602050':
-                sended_message = await message.respond('查詢中...')
-                black_list=[228922]
-                while True:
-                    if int(number) in black_list:
-                        await sended_message.edit_original_response(content="不受理此號碼")
-                        return
-                    if int(number) == 0:
-                        number = str(random.randint(1, 400000))
-                    else:
-                        number = str(number)
-                    url = "https://nhentai.net/g/" + number
-                    search_obj = requests.get(f"https://translate.google.com/translate?sl=vi&tl=en&hl=vi&u={url}&client=webapp")
-                    if search_obj.status_code == 404:
-                        if int(number) == 0:
-                            continue
-                        else:
-                            await sended_message.edit_original_response(content="查詢錯誤，此漫畫不存在。")
-                        return
-                    Soup = BeautifulSoup(search_obj.text,'html.parser')
-                    title = Soup.title.string.replace(" » nhentai: hentai doujinshi and manga","")
-                    image = Soup.find("meta", itemprop="image").get('content')  
-                    embed = SakuraEmbedMsg(title=title)
-                    embed.set_image(url=image)
-                    embed.add_field(name="漫畫連結", value=url, inline=False)
-                    await sended_message.edit_original_response(embed=embed,content="")
+            sended_message = await message.respond('查詢中...')
+            black_list=[228922]
+            while True:
+                if int(number) in black_list:
+                    await sended_message.edit_original_response(content="不受理此號碼")
                     return
-            else:
-                await message.respond("不可以色色!", ephemeral=True)
+                if int(number) == 0:
+                    number = str(random.randint(1, 400000))
+                else:
+                    number = str(number)
+                url = "https://nhentai.net/g/" + number
+                search_obj = requests.get(f"https://translate.google.com/translate?sl=vi&tl=en&hl=vi&u={url}&client=webapp")
+                if search_obj.status_code == 404:
+                    if int(number) == 0:
+                        continue
+                    else:
+                        await sended_message.edit_original_response(content="查詢錯誤，此漫畫不存在。")
+                    return
+                Soup = BeautifulSoup(search_obj.text,'html.parser')
+                title = Soup.title.string.replace(" » nhentai: hentai doujinshi and manga","")
+                image = Soup.find("meta", itemprop="image").get('content')  
+                embed = SakuraEmbedMsg(title=title)
+                embed.set_image(url=image)
+                embed.add_field(name="漫畫連結", value=url, inline=False)
+                await sended_message.edit_original_response(embed=embed,content="")
+                return
         except Exception as e:
             await message.respond(str(e), ephemeral=True)
 
