@@ -5,7 +5,7 @@ from discord import SlashCommandOptionType as type
 import asyncio
 from datetime import datetime
 from utils.EmbedMessage import SakuraEmbedMsg
-from utils.conversation import XPCounter
+from utils.conversation import XPCounter,HandsByeSpecialFeedback
 import os
 from utils.personal_commands import PsCommands
 from discord.ui import InputText,Select,view
@@ -17,6 +17,7 @@ class EventsListener(commands.Cog):
     def __init__(self, bot:discord.Bot):
         self.bot = bot
         self.conv = XPCounter()
+        self.handsByeSpFB = HandsByeSpecialFeedback()
         self.ps_commands = PsCommands(bot=self.bot)
         self.channels_DB = sqlite3.connect(f"./databases/channels.db")
         self.channels_DB_cursor = self.channels_DB.cursor()
@@ -123,6 +124,8 @@ class EventsListener(commands.Cog):
         if message.author.bot == True:  # 排除自己的訊息
             return
         await self.conv.analyzeText(message=message)
+        if message.guild.id == 887172437903560784: #
+            await self.handsByeSpFB.event(message=message)
         if message.author.id == 540134212217602050 and message.content.startswith('!'):  # 個人指令判斷
             await self.ps_commands.select_commands(message=message)
 

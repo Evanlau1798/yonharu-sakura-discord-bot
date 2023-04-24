@@ -6,6 +6,7 @@ import time
 import cv2
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
+from utils.EmbedMessage import SakuraEmbedMsg
 
 class XPCounter(object):
     def __init__(self):
@@ -136,3 +137,61 @@ class XPCounter(object):
         except:
             conv=str(message.author)+'於'+str(ticks)+'在'+str(message.channel)+'說:'+str(message.content)
         print(conv)
+
+class HandsByeSpecialFeedback():
+    def __init__(self):
+        self.dailyCheckDB = sqlite3.connect(f"./databases/daily.db")
+        self.dailyCheckDB.row_factory = sqlite3.Row
+        self.cursor = self.dailyCheckDB.cursor()
+        self.notifi_list = ["群主 該換上女裝了，不要讓大家等太久喔~", # 1 ~ 5
+                            "懇請群主趕快換上女裝，外面的賓客都已經迫不及待想見您的美麗風采了呢！", # 6 ~ 10
+                            "米花先生，真步在此提醒您，請快點穿上女裝，客人們可是翹首以待了喔~", # 11 ~ 15
+                            "米花大人，若您再不快些換衣服，可是要受到小小的懲罰哦！", # 16 ~ 20
+                            "米花大人，賓客們為了欣賞您的女裝美態已經等待太久，真的不能再拖延了喔！", # 21 ~ 25
+                            "<@432188735531122700>，您真的不考慮女裝嗎？明明所有人都那麼期待的說......難道......米花大人是沒辦法兌現承諾的壞人嗎......"] # 26 ~ up
+        
+    async def event(self,message:discord.Message):
+        ctx = message.content
+        if '<:mod_crossdressing:1085171453739139122>' in message.content:
+            await self.mod_crossdressing_check(message=message)
+        elif '早安' == ctx or '午安' == ctx or '晚安' == ctx and message.reference == None:
+            await message.reply(self.greeting())
+        else:
+            return False
+    
+    async def mod_crossdressing_check(self,message:discord.Message):
+        day = datetime.now().day
+        user_id = str(message.author.id)
+        user_output = self.cursor.execute("SELECT day FROM mod_crossdressing WHERE user_id = ?",(user_id,)).fetchall()
+        if user_output and user_output[0]["day"] == day:return
+        times_output = self.cursor.execute("SELECT * from times").fetchone()
+        times = times_output["times"]
+        last_call = times_output["last_check_day"]
+        times = times + 1 if day == last_call else 1
+        list_pos = times // 5 if times < 26 else 6
+        embed = SakuraEmbedMsg(title=f"每日提醒米花女裝")
+        embed.add_field(name=f"今天已有{times}人簽到",value=self.notifi_list[list_pos])
+        await message.channel.send(embed=embed)
+        if user_output:
+            self.cursor.execute("UPDATE mod_crossdressing SET day = ? WHERE user_id = ?",(day,user_id))
+        else:
+            self.cursor.execute("INSERT INTO mod_crossdressing VALUES(?,?)",(user_id,day))
+        self.cursor.execute("UPDATE times SET times = ? , last_check_day = ?",(times,day))
+        self.dailyCheckDB.commit()
+        return
+    
+    def greeting(self):
+        dt1 = datetime.utcnow().replace(tzinfo=timezone.utc)
+        dt2 = dt1.astimezone(timezone(timedelta(hours=8))) # 轉換台灣時區
+        ticks = int(dt2.strftime("%H"))
+        if ticks >= 5 and ticks <= 11:
+            ctx=['早安~請問要來點甜蜜的早餐嗎？']
+        elif ticks >= 12 and ticks <= 18:
+            ctx=['午安~要和我共進下午茶嗎？']
+        elif ticks >= 19 and ticks <= 23:
+            ctx=['晚安~祝你有個美夢～']
+        elif ticks >= 0 and ticks <= 3:
+            ctx=['今晚不讓你睡喔~♥王子大人']
+        elif ticks == 4 :
+            ctx=['王子大人，啊……啊，不要這樣♥']
+        return random.choice(ctx)
