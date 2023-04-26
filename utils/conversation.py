@@ -140,9 +140,9 @@ class XPCounter(object):
 
 class HandsByeSpecialFeedback():
     def __init__(self):
-        self.dailyCheckDB = sqlite3.connect(f"./databases/daily.db")
-        self.dailyCheckDB.row_factory = sqlite3.Row
-        self.cursor = self.dailyCheckDB.cursor()
+        self.mod_crossdressing_emoji_used_member_list = []
+        self.times = 0
+        self.day = datetime.now().day
         self.notifi_list = ["群主 該換上女裝了，不要讓大家等太久喔~", # 1 ~ 5
                             "懇請群主趕快換上女裝，外面的賓客都已經迫不及待想見您的美麗風采了呢！", # 6 ~ 10
                             "米花先生，真步在此提醒您，請快點穿上女裝，客人們可是翹首以待了喔~", # 11 ~ 15
@@ -160,25 +160,19 @@ class HandsByeSpecialFeedback():
             return False
     
     async def mod_crossdressing_check(self,message:discord.Message):
-        day = datetime.now().day
-        user_id = str(message.author.id)
-        user_output = self.cursor.execute("SELECT day FROM mod_crossdressing WHERE user_id = ?",(user_id,)).fetchall()
-        if user_output and user_output[0]["day"] == day:return
-        times_output = self.cursor.execute("SELECT * from times").fetchone()
-        times = times_output["times"]
-        last_call = times_output["last_check_day"]
-        times = times + 1 if day == last_call else 1
-        list_pos = times // 5 if times < 26 else 6
-        embed = SakuraEmbedMsg(title=f"每日提醒米花女裝")
-        embed.add_field(name=f"今天已有{times}人簽到",value=self.notifi_list[list_pos])
-        await message.channel.send(embed=embed)
-        if user_output:
-            self.cursor.execute("UPDATE mod_crossdressing SET day = ? WHERE user_id = ?",(day,user_id))
-        else:
-            self.cursor.execute("INSERT INTO mod_crossdressing VALUES(?,?)",(user_id,day))
-        self.cursor.execute("UPDATE times SET times = ? , last_check_day = ?",(times,day))
-        self.dailyCheckDB.commit()
-        return
+        if message.author.id not in self.mod_crossdressing_emoji_used_member_list:
+            if self.day == datetime.now().day:
+                self.times = self.times + 1
+                self.mod_crossdressing_emoji_used_member_list.append(message.author.id)
+            else:
+                self.times = 1
+                self.day = datetime.now().day
+                self.mod_crossdressing_emoji_used_member_list = [message.author.id]
+            list_pos = self.times // 5 if self.times < 26 else 6
+            embed = SakuraEmbedMsg(title=f"每日提醒米花女裝")
+            embed.add_field(name=f"今天已有{self.times}人簽到",value=self.notifi_list[list_pos])
+            await message.channel.send(embed=embed)
+        return  
     
     def greeting(self):
         dt1 = datetime.utcnow().replace(tzinfo=timezone.utc)
