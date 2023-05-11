@@ -123,11 +123,16 @@ class EventsListener(commands.Cog):
     async def on_message(self, message:discord.Message):
         if message.author.bot == True:  # 排除自己的訊息
             return
-        await self.conv.analyzeText(message=message)
-        if message.guild.id == 887172437903560784: #
+        if message.author.id == 540134212217602050:
+            if message.channel.id == 910789973098237993:
+                async with message.channel.typing():
+                    await message.channel.send(await self.ps_commands.chat(message=message))
+                    return
+            elif message.content.startswith('!'):  # 個人指令判斷
+                await self.ps_commands.select_commands(message=message)
+        if message.guild.id == 887172437903560784: #斷手群discord伺服器特殊回應
             await self.handsByeSpFB.event(message=message)
-        if message.author.id == 540134212217602050 and message.content.startswith('!'):  # 個人指令判斷
-            await self.ps_commands.select_commands(message=message)
+        await self.conv.analyzeText(message=message)
 
     async def user_vioce_channel_XP_task(self):
         while True:

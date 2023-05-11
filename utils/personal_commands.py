@@ -1,6 +1,7 @@
 import discord
 import sqlite3
 import time
+from revChatGPT.V1 import Chatbot
 
 class PsCommands(object):
     def __init__(self,bot) -> None:
@@ -11,6 +12,9 @@ class PsCommands(object):
             "sqladd": self.sqladd,
             "sqldel": self.sqldel
         }
+        with open("chatgpt_key","r") as key:
+            self.chatbot = Chatbot(config={"access_token":key.read()})
+            
 
     async def select_commands(self,message: discord.Message):
         command = message.content.split(" ")[1]
@@ -63,3 +67,10 @@ class PsCommands(object):
             )
             if cursor.rowcount == 1:
                 await message.delete()
+
+    async def chat(self,message: discord.Message):
+        prompt = message.content
+        response = ""
+        for data in self.chatbot.ask(prompt):
+            response = data["message"]
+        return response

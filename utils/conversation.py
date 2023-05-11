@@ -160,19 +160,22 @@ class HandsByeSpecialFeedback():
             return False
     
     async def mod_crossdressing_check(self,message:discord.Message):
-        if message.author.id not in self.mod_crossdressing_emoji_used_member_list:
-            if self.day == datetime.now().day:
-                self.times = self.times + 1
-                self.mod_crossdressing_emoji_used_member_list.append(message.author.id)
-            else:
-                self.times = 1
-                self.day = datetime.now().day
-                self.mod_crossdressing_emoji_used_member_list = [message.author.id]
-            list_pos = self.times // 5 if self.times < 26 else 6
-            embed = SakuraEmbedMsg(title=f"每日提醒米花女裝")
-            embed.add_field(name=f"今天已有{self.times}人簽到",value=self.notifi_list[list_pos])
-            await message.channel.send(embed=embed)
-        return  
+        today = datetime.now().day
+        if self.day != today:
+            self.times = 1
+            self.day = today
+            self.mod_crossdressing_emoji_used_member_list = [message.author.id]
+        elif message.author.id not in self.mod_crossdressing_emoji_used_member_list:
+            self.times = self.times + 1
+            self.mod_crossdressing_emoji_used_member_list.append(message.author.id)
+        else:
+            return
+        list_pos = self.times // 5 if self.times < 26 else 6
+        embed = SakuraEmbedMsg(title=f"每日提醒米花女裝")
+        embed.add_field(name=f"今天已有{self.times}人簽到",value=self.notifi_list[list_pos])
+        await message.channel.send(embed=embed)
+        print(self.mod_crossdressing_emoji_used_member_list)
+        return
     
     def greeting(self):
         dt1 = datetime.utcnow().replace(tzinfo=timezone.utc)
