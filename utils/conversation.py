@@ -174,7 +174,7 @@ class HandsByeSpecialFeedback():
         embed = SakuraEmbedMsg(title=f"每日提醒米花女裝")
         embed.add_field(name=f"今天已有{self.times}人簽到",value=self.notifi_list[list_pos])
         await message.channel.send(embed=embed)
-        print(self.mod_crossdressing_emoji_used_member_list)
+        print("self.day=",self.day,"\ntoday=",today,"\n",self.mod_crossdressing_emoji_used_member_list)
         return
     
     def greeting(self):

@@ -58,6 +58,16 @@ class MainCommands(commands.Cog):
             return
         else:
             await message.respond(embed = SakuraEmbedMsg(title="錯誤",description="請至少輸入一個翻譯來源"), ephemeral=True)
+
+    @commands.message_command(name="翻譯至繁體中文(Google翻譯)")
+    async def msg_trans(self,ctx:discord.ApplicationContext,message: discord.Message):
+        output = translator.translate(message.content, dest='zh-tw').text
+        embed = SakuraEmbedMsg()
+        name = message.author
+        embed.add_field(name="原文",value=message.content,inline=False)
+        embed.add_field(name="翻譯",value=output,inline=False)
+        embed.set_author(name=name, icon_url=message.author.display_avatar.url,url=message.jump_url)
+        await ctx.respond(embed=embed, ephemeral=True)
     
     @commands.slash_command(description="查詢指定地區")
     @option("weather", type=type.string, description="請輸入欲查詢的地區", required=True)

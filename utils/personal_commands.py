@@ -71,6 +71,9 @@ class PsCommands(object):
     async def chat(self,message: discord.Message):
         prompt = message.content
         response = ""
-        for data in self.chatbot.ask(prompt):
-            response = data["message"]
-        return response
+        try:
+            for data in self.chatbot.ask(prompt):
+                response = data["message"]
+            return response
+        except Exception as e:
+            return str(e)
