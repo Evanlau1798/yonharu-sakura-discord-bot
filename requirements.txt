@@ -10,3 +10,4 @@ youtube_dl
 python-dotenv
 pillow
 revChatGPT
+pytz
