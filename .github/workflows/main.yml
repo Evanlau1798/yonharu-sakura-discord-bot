@@ -1,4 +1,4 @@
-name: Pterodactyl Update
+name: Update and Restart Server
 
 on:
   push:
@@ -13,10 +13,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Trigger Pterodactyl API
+      - name: Send HTTP request to Pterodactyl
         run: |
-          curl -X POST \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.PTERODACTYL_API_TOKEN }}" \
-            -d '{"signal": "restart"}' \
-            https://panel.cheapserver.fun/api/client/servers/73156fba/power
+          curl -X POST https://panel.cheapserver.fun/server/73156fba \
+          -H 'Authorization: Bearer ${{ secrets.PTERODACTYL_API_KEY }}' \
+          -H 'Content-Type: application/json' \
+          -d '{"signal": "restart"}'
