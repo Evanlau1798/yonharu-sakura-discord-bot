@@ -15,7 +15,7 @@ import pixivpy3
 import random
 from bs4 import BeautifulSoup
 from utils.EmbedMessage import SakuraEmbedMsg
-from utils.game import game
+
 
 PATH = os.path.join(os.path.dirname(__file__))
 translator = Translator()
@@ -266,17 +266,6 @@ class MainCommands(commands.Cog):
         for i in range(choices_amount):
             await msg.add_reaction(choices_emoji[i])
         return
-    
-    @commands.slash_command(description="遊玩小遊戲!")
-    @option("difficulty", type=type.integer, description="自訂難度(預設為100)", required=False)
-    async def game(self,message: discord.ApplicationContext,difficulty=100):
-        await message.response.defer()
-        global quetion
-        if difficulty >= 1:
-            quetion_message = await message.respond(f"猜猜看究竟是0~{difficulty}中哪一個數吧!\n(回覆此訊息以猜測，限時45秒)")
-            quetion = game(quetion_message.id,difficulty)
-        else:
-            await message.respond(f"無效的難度，難度需大於1({difficulty})")
 
     @commands.slash_command(description="查看可用指令")
     async def help(self,message: discord.ApplicationContext):

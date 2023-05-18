@@ -12,6 +12,7 @@ from discord.ui import InputText,Select,view
 import sqlite3
 import random
 import time
+from utils.game import game
 
 class EventsListener(commands.Cog):
     def __init__(self, bot:discord.Bot):
@@ -21,6 +22,7 @@ class EventsListener(commands.Cog):
         self.ps_commands = PsCommands(bot=self.bot)
         self.channels_DB = sqlite3.connect(f"./databases/channels.db")
         self.channels_DB_cursor = self.channels_DB.cursor()
+        self.quetion = None
         loop = asyncio.get_event_loop()
         loop.create_task(self.user_vioce_channel_XP_task())
 
@@ -118,6 +120,16 @@ class EventsListener(commands.Cog):
         else:
             await message.respond(embed=SakuraEmbedMsg("錯誤","此頻道不存在於資料庫內"), ephemeral=True)
         return
+    
+    @commands.slash_command(description="遊玩小遊戲!")
+    @option("difficulty", type=type.integer, description="自訂難度(預設為100)", required=False)
+    async def game(self,message: discord.ApplicationContext,difficulty=100):
+        await message.response.defer()
+        if difficulty >= 1:
+            quetion_message = await message.respond(f"猜猜看究竟是0~{difficulty}中哪一個數吧!\n(回覆此訊息以猜測，限時45秒)")
+            self.quetion = game(quetion_message.id,difficulty)
+        else:
+            await message.respond(f"無效的難度，難度需大於1({difficulty})")
 
     @commands.Cog.listener()
     async def on_message(self, message:discord.Message):
@@ -132,6 +144,9 @@ class EventsListener(commands.Cog):
                 await self.ps_commands.select_commands(message=message)
         if message.guild.id == 887172437903560784: #斷手群discord伺服器特殊回應
             await self.handsByeSpFB.event(message=message)
+        if self.quetion != None and message.reference != None:
+            if message.reference.message_id in self.quetion.msg_id:
+                await self.game_process(message)
         await self.conv.analyzeText(message=message)
 
     async def user_vioce_channel_XP_task(self):
@@ -145,6 +160,30 @@ class EventsListener(commands.Cog):
                             self.conv.addVoiceXP(user=user,guild=guild)
             if self.conv.XPCounter_DB.in_transaction:
                 self.conv.XPCounter_DB.commit()
+
+    async def game_process(self,message: discord.Message):
+        try:
+            user = str(message.author).split("#")[0]
+            embed = SakuraEmbedMsg(description=self.quetion.Guess(int(message.content)))
+            embed.set_author(name=f"{user}猜了{str(message.content)}",icon_url=message.author.display_avatar.url)
+            if int(message.content) != self.quetion.number:
+                embed.set_footer(text="回覆我以繼續猜數字")
+                new_msg = await message.channel.send(embed=embed)
+                await message.delete()
+                self.quetion.msg_id.append(new_msg.id)
+            else:
+                embed.set_footer(text="遊戲結束!")
+                await message.channel.send(embed=embed)
+                await message.delete()
+                self.quetion = None
+        except Exception as e:
+            embed = SakuraEmbedMsg(description=f"答案包含除數字以外的字元\n剩餘{int(45 - self.quetion.time/10)}秒")
+            embed.set_author(name=f"{user}猜了{str(message.content)}",icon_url=message.author.display_avatar.url)
+            embed.set_footer(text="回覆我以繼續猜數字")
+            new_msg = await message.channel.send(embed=embed)
+            await message.delete()
+            self.quetion.msg_id.append(new_msg.id)
+            await message.reply(embed)
 
     @commands.Cog.listener()
     async def on_voice_state_update(self,member:discord.Member, before:discord.VoiceState, after:discord.VoiceState):
