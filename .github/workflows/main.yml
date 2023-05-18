@@ -1,0 +1,22 @@
+name: Pterodactyl Update
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Trigger Pterodactyl API
+        run: |
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.PTERODACTYL_API_TOKEN }}" \
+            -d '{"signal": "restart"}' \
+            https://panel.cheapserver.fun/api/client/servers/73156fba/power
