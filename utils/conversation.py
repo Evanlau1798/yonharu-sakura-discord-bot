@@ -106,7 +106,7 @@ class XPCounter(object):
         rank_list = self.XPCounter_DB_cursor.execute(f"SELECT Name,XP from {type} where Guild = {message.guild.id} ORDER BY XP DESC LIMIT 10;").fetchall()
         rank_list = [list(x) for x in rank_list]       
         for i in range(len(rank_list)):
-                rank_list[i][1] = f"Lv.{str(self.getLevel(rank_list[i][1])[0])}"
+            rank_list[i][1] = f"Lv.{str(self.getLevel(rank_list[i][1])[0])}"
         if len(rank_list) != 0:
             for i,x in zip(rank_list,range(19,919,90)):
                 img = self.cv2ImgAddText(img,str(i[0]),110,x,"black")

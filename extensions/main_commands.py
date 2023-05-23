@@ -15,6 +15,7 @@ import pixivpy3
 import random
 from bs4 import BeautifulSoup
 from utils.EmbedMessage import SakuraEmbedMsg
+import sqlite3
 
 
 PATH = os.path.join(os.path.dirname(__file__))
@@ -22,6 +23,8 @@ translator = Translator()
 api_key = '576bfa89b78416c5bb19d6bc92f97a1e'
 base_url = "http://api.openweathermap.org/data/2.5/weather?"
 _REFRESH_TOKEN = 'eiDaafkFze2rPaw-X2yaOXdiGpwpNpwvrIr_1jVTQww'
+pinnedMsgDB = sqlite3.connect(f"./databases/PinnedMsg.db")
+pinnedMsgDB_cursor = pinnedMsgDB.cursor()
 
 class MainCommands(commands.Cog):
     def __init__(self, bot:discord.Bot):
@@ -68,6 +71,33 @@ class MainCommands(commands.Cog):
         embed.add_field(name="翻譯",value=output,inline=False)
         embed.set_author(name=name, icon_url=message.author.display_avatar.url,url=message.jump_url)
         await ctx.respond(embed=embed, ephemeral=True)
+
+    @commands.message_command(name="儲存並訂選此訊息")
+    async def pin_msg(self,ctx:discord.ApplicationContext,message: discord.Message):
+        GuildID = message.guild.id
+        PinnedBy = ctx.author.id
+        msg_id = message.id
+        MsgLink = message.jump_url
+        msg_content = message.content
+        msg_by = message.author.id
+        embed = SakuraEmbedMsg()
+        embed.set_author(name=message.author, icon_url=message.author.display_avatar.url)
+        embed.add_field(name=msg_content,value=f"已儲存該訊息\n[訊息連結]({MsgLink})")
+        await ctx.respond(embed=embed, ephemeral=True)
+        x = (GuildID,PinnedBy,msg_id,msg_by,MsgLink,msg_content)
+        pinnedMsgDB_cursor.execute("INSERT OR IGNORE INTO PinnedMsg VALUES(?,?,?,?,?,?)",x)
+        pinnedMsgDB.commit()
+
+    @commands.slash_command(description="查詢已儲存的消息")
+    async def pinnedmsg(self,message: discord.ApplicationContext):
+        view = PinnedMsgView(guildID=message.guild.id)
+        if view.stat != False:
+            embed = SakuraEmbedMsg(title="請選則欲察看的訊息")
+            view.set_message(await message.respond(view=view,embed=embed))
+        else:
+            embed = SakuraEmbedMsg(title="錯誤",description="請先使用應用程式訊息選單釘選訊息後\n再使用此功能")
+            await message.respond(embed=embed, ephemeral=True)
+        return
     
     @commands.slash_command(description="查詢指定地區")
     @option("weather", type=type.string, description="請輸入欲查詢的地區", required=True)
@@ -272,6 +302,35 @@ class MainCommands(commands.Cog):
         embed = SakuraEmbedMsg(title="指令使用說明", description="讓您了解如何活用我的力量!")
         view = help.HelpView()
         view.set_message(await message.respond(embed=embed, view=view, ephemeral=True))
+
+class PinnedMsgView(discord.ui.View):
+    def __init__(self,guildID):
+        super().__init__(timeout=None)
+        self.guildID = guildID
+        self.stat = True
+        output = pinnedMsgDB_cursor.execute("SELECT * from PinnedMsg WHERE GuildID = ? ",(guildID,)).fetchall()
+        if len(output) == 0:
+            self.stat = False
+            return
+        options = []
+        for GuildID,PinnedBy,msg_id,msg_by,MsgLink,msg_content in output:
+            options.append(discord.SelectOption(label=msg_content[:20], description=f"訊息ID:{msg_id}",value=MsgLink))
+        self.select = discord.ui.Select(placeholder="請選擇訊息",options=options,custom_id="Pinned_Msg_View")
+        self.select.callback = self.select_callback
+        self.add_item(item=self.select)
+
+    def set_message(self,message: discord.Interaction):
+        self.EphemeralMessage = message
+
+    async def select_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        url = interaction.data["values"][0]
+        GuildID,PinnedBy,msg_id,msg_by,MsgLink,msg_content = pinnedMsgDB_cursor.execute("SELECT * from PinnedMsg WHERE MsgLink = ?",(url,)).fetchone()
+        embed = SakuraEmbedMsg(title=f"{interaction.guild}的釘選訊息",description=msg_content)
+        embed.add_field(name="訊息發送者",value=f"<@{msg_by}>",inline=False)
+        embed.add_field(name="釘選訊息者",value=f"<@{PinnedBy}>",inline=False)
+        embed.add_field(name="訊息連結",value=f"[點我前往]({MsgLink})",inline=False)
+        await self.EphemeralMessage.edit_original_response(embed=embed)
 
 
 def setup(bot:discord.Bot):
