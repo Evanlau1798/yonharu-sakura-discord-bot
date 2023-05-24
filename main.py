@@ -16,7 +16,9 @@ class mainBot(discord.Bot):
 
     def loadButton(self): #views新增區
         from utils.help import HelpView
+        from extensions.main_commands import PinnedMsgView
         bot.add_view(HelpView())
+        bot.add_view(PinnedMsgView())
         return
 
 if __name__ == "__main__":
