@@ -47,6 +47,7 @@ class SnipeEventsListener(commands.Cog):
     @commands.Cog.listener()
     async def on_message_delete(self,message:discord.Message):
         print(message.content)
+        if message.author.bot:return
         guild_id = message.guild.id
         if guild_id in snipes:
             queue = snipes[guild_id]
@@ -60,6 +61,7 @@ class SnipeEventsListener(commands.Cog):
     @commands.Cog.listener()
     async def on_message_edit(self,before:discord.Message, after:discord.Message):
         print("舊:",before.content,"新:",after.content)
+        if before.author.bot:return
         guild_id = before.guild.id
         if guild_id in snipes:
             queue = snipes[guild_id]

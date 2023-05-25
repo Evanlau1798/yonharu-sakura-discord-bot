@@ -93,7 +93,7 @@ class MainCommands(commands.Cog):
         view = PinnedMsgView(guildID=message.guild.id)
         if view.stat != False:
             embed = SakuraEmbedMsg(title="請選則欲察看的訊息")
-            view.set_message(await message.respond(view=view,embed=embed, ephemeral=True))
+            await message.respond(view=view,embed=embed)
         else:
             embed = SakuraEmbedMsg(title="錯誤",description="請先使用應用程式訊息選單釘選訊息後\n再使用此功能")
             await message.respond(embed=embed, ephemeral=True)
@@ -321,9 +321,6 @@ class PinnedMsgView(discord.ui.View):
         self.select.callback = self.select_callback
         self.add_item(item=self.select)
 
-    def set_message(self,message: discord.Interaction):
-        self.EphemeralMessage = message
-
     async def select_callback(self, interaction: discord.Interaction):
         await interaction.response.defer()
         url = interaction.data["values"][0]
@@ -332,7 +329,7 @@ class PinnedMsgView(discord.ui.View):
         embed.add_field(name="訊息發送者",value=f"<@{msg_by}>",inline=False)
         embed.add_field(name="釘選訊息者",value=f"<@{PinnedBy}>",inline=False)
         embed.add_field(name="訊息連結",value=f"[點我前往]({MsgLink})",inline=False)
-        await self.EphemeralMessage.edit_original_response(embed=embed)
+        await interaction.message.edit(embed=embed)
 
 def setup(bot:discord.Bot):
     bot.add_cog(MainCommands(bot))
