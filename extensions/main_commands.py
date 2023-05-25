@@ -83,7 +83,7 @@ class MainCommands(commands.Cog):
         embed = SakuraEmbedMsg()
         embed.set_author(name=message.author, icon_url=message.author.display_avatar.url)
         embed.add_field(name=msg_content[:256],value=f"已儲存該訊息\n[訊息連結]({MsgLink})")
-        await ctx.respond(embed=embed, ephemeral=True)
+        await ctx.respond(embed=embed)
         x = (GuildID,PinnedBy,msg_id,msg_by,MsgLink,msg_content)
         pinnedMsgDB_cursor.execute("INSERT OR IGNORE INTO PinnedMsg VALUES(?,?,?,?,?,?)",x)
         pinnedMsgDB.commit()

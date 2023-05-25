@@ -1,5 +1,6 @@
 [
     "extensions.main_commands",
     "extensions.music_commands",
-    "extensions.channel_events"
+    "extensions.channel_events",
+    "extensions.snipe"
 ]
