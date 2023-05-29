@@ -11,6 +11,7 @@ class mainBot(discord.Bot):
 
     async def on_ready(self):
         self.loadButton()
+        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=f"{len(bot.guilds)} 個伺服器"))
         print("done")
         print(f"目前使用者:{bot.user}")
 
