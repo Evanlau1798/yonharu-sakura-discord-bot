@@ -40,12 +40,11 @@ class SnipeEventsListener(commands.Cog):
     @commands.slash_command(description="查看最近被刪除的訊息")
     @default_permissions(administrator=True)
     async def editsnipe(self,message: discord.ApplicationContext):
-        await message.respond(embed=SakuraEmbedMsg(title="請選擇欲查看的訊息"),view=EditSnipeMsgView(message=message))
-        '''try:
+        try:
             view=EditSnipeMsgView(message=message)
             await message.respond(embed=SakuraEmbedMsg(title="請選擇欲查看的訊息"),view=view)
         except:
-            await message.respond(embed=SakuraEmbedMsg(title="錯誤",description="目前沒有已儲存之被編輯的訊息"))'''
+            await message.respond(embed=SakuraEmbedMsg(title="錯誤",description="目前沒有已儲存之被編輯的訊息"))
 
     @commands.Cog.listener()
     async def on_message_delete(self,message:discord.Message):
