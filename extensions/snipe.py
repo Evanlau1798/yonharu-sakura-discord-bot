@@ -16,26 +16,13 @@ class SnipeEventsListener(commands.Cog):
         self.delete_serial_no = 1
     
     @commands.slash_command(description="查看最近被刪除的訊息")
-    @option("index", type=type.integer, description="頁數索引", required=False)
     @default_permissions(administrator=True)
-    async def deletesnipe(self,message: discord.ApplicationContext, index: int = 0):
-        if message.guild.id in delete_snipes:
-            queue = delete_snipes[message.guild.id]
-            if 0 <= index < len(queue): # 檢查索引是否有效（介於 0 到佇列長度 - 1 之間）
-                snipe_message:discord.Message = queue[index]
-                embed = SakuraEmbedMsg()
-                embed.set_author(name="訊息刪除紀錄", icon_url=snipe_message.author.avatar.url)
-                embed.add_field(name="使用者",value=snipe_message.author.mention,inline=False)
-                embed.add_field(name="發送至的頻道",value=snipe_message.channel.mention,inline=False)
-                embed.add_field(name="訊息內容",value=snipe_message.content,inline=False)
-                embed.add_field(name="發送時間",value=f"{snipe_message.created_at}\n<t:{int(snipe_message.created_at.timestamp())}>",inline=False)
-                if len(snipe_message.attachments) != 0:
-                    embed.set_image(url=snipe_message.attachments[0])
-                await message.respond(embed=embed, ephemeral=True)
-            else:
-                await message.respond(f"索引超出範圍（0-{len(queue)-1}）", ephemeral=True)
-        else:
-            await message.respond("沒有找到任何被刪除或編輯的訊息", ephemeral=True)
+    async def deletesnipe(self,message: discord.ApplicationContext):
+        try:
+            view=DeleteSnipeMsgView(message=message)
+            await message.respond(embed=SakuraEmbedMsg(title="請選擇欲查看的訊息"),view=view)
+        except:
+            await message.respond(embed=SakuraEmbedMsg(title="錯誤",description="目前沒有已儲存之被刪除的訊息"), ephemeral=True)
 
     @commands.slash_command(description="查看最近被編輯的訊息")
     @default_permissions(administrator=True)
@@ -52,6 +39,8 @@ class SnipeEventsListener(commands.Cog):
         global delete_snipes
         if message.author.bot:return
         guild_id = message.guild.id
+        message = SerialNoAdder(after=message,SerialNo=self.delete_serial_no)
+        self.delete_serial_no += 1
         if guild_id in delete_snipes:
             queue = delete_snipes[guild_id]
             queue.appendleft(message)
@@ -112,9 +101,42 @@ class EditSnipeMsgView(discord.ui.View):
                     embed.set_image(url=snipe_message.before_message.attachments[0])
                 await interaction.message.edit(embed=embed)
                 return
+            
+class DeleteSnipeMsgView(discord.ui.View):
+    def __init__(self,message: discord.ApplicationContext):
+        super().__init__(timeout=None)
+        options = []
+        if message.guild.id in delete_snipes:
+            queue = delete_snipes[message.guild.id]
+            for snipe_message in queue:
+                snipe_message:discord.Message
+                options.append(discord.SelectOption(label=snipe_message.after_message.content[:100], description=f"訊息作者:{snipe_message.after_message.author}",value=str(snipe_message.SerialNo)))
+        else:
+            return ValueError("未找到紀錄")
+        self.select = discord.ui.Select(placeholder="請選擇訊息",options=options,custom_id="Deleted_Msg_View")
+        self.select.callback = self.select_callback
+        self.add_item(item=self.select)
+
+    async def select_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        guild_delete_message = delete_snipes[interaction.guild.id]
+        msg_serial_no = int(interaction.data["values"][0])
+        for snipe_message in guild_delete_message:
+            if snipe_message.SerialNo == msg_serial_no:
+                embed = SakuraEmbedMsg()
+                embed.set_author(name="訊息刪除紀錄", icon_url=snipe_message.after_message.author.avatar.url)
+                embed.add_field(name="使用者",value=snipe_message.after_message.author.mention,inline=False)
+                embed.add_field(name="發送至的頻道",value=snipe_message.after_message.channel.mention,inline=False)
+                embed.add_field(name="訊息內容",value=snipe_message.after_message.content,inline=False)
+                embed.add_field(name="發送時間",value=f"{snipe_message.after_message.created_at}\n<t:{int(snipe_message.after_message.created_at.timestamp())}>",inline=False)
+                if len(snipe_message.after_message.attachments) != 0:
+                    embed.set_image(url=snipe_message.attachments[0])
+                await interaction.message.edit(embed=embed)
+                return
+
 
 class SerialNoAdder():
-    def __init__(self,before,after, SerialNo):
+    def __init__(self,before=None,after=None, SerialNo=None):
         self.before_message = before
         self.after_message = after
         self.SerialNo = SerialNo
