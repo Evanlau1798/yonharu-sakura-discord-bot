@@ -7,7 +7,7 @@ from datetime import datetime
 from utils.EmbedMessage import SakuraEmbedMsg
 from utils.conversation import XPCounter,HandsByeSpecialFeedback
 import os
-from utils.personal_commands import PsCommands
+from utils.personal_commands import PsCommands,TagCommands
 from discord.ui import InputText,Select,view
 import sqlite3
 import random
@@ -20,6 +20,7 @@ class EventsListener(commands.Cog):
         self.conv = XPCounter()
         self.handsByeSpFB = HandsByeSpecialFeedback()
         self.ps_commands = PsCommands(bot=self.bot)
+        self.tag_commands = TagCommands(bot=self.bot)
         self.channels_DB = sqlite3.connect(f"./databases/channels.db")
         self.channels_DB_cursor = self.channels_DB.cursor()
         self.quetion = None
@@ -144,6 +145,8 @@ class EventsListener(commands.Cog):
                 await self.ps_commands.select_commands(message=message)
         if message.guild.id == 887172437903560784: #斷手群discord伺服器特殊回應
             await self.handsByeSpFB.event(message=message)
+        if "<@909796683418832956>" in message.content:
+            await self.tag_commands.select_commands(message=message)
         if self.quetion != None and message.reference != None:
             if message.reference.message_id in self.quetion.msg_id:
                 await self.game_process(message)

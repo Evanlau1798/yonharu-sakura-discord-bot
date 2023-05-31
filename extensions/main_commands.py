@@ -165,7 +165,7 @@ class MainCommands(commands.Cog):
     @commands.slash_command(description="有問題就問問我吧！我可以幫你解答的😆")
     @option("question", type=type.string, description="請輸入您想問的問題", required=True)
     async def pool(self,message: discord.ApplicationContext,question):
-        name = str(message.author).split('#')
+        name = message.author.name
         conv = ['一定的', '沒有異議', '你會依靠他的', '好喔',
                 '你不會想知道的', '基於我的看法:不要！', '不要。', '你要確定誒',
                 '不好說', '等等再問我吧', '好問題，我需要思考一下', '我現在沒辦法決定🤔']
