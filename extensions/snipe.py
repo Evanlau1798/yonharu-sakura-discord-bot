@@ -75,7 +75,11 @@ class EditSnipeMsgView(discord.ui.View):
             queue = edited_snipes[message.guild.id]
             for snipe_message in queue:
                 snipe_message:discord.Message
-                options.append(discord.SelectOption(label=snipe_message.after_message.content[:100], description=f"訊息作者:{snipe_message.after_message.author}",value=str(snipe_message.SerialNo)))
+                if len(snipe_message.after_message.content) != 0:
+                    label = snipe_message.after_message.content[:100]
+                else:
+                    label = "(圖片訊息)"
+                options.append(discord.SelectOption(label=label, description=f"訊息作者:{snipe_message.after_message.author}",value=str(snipe_message.SerialNo)))
         else:
             return ValueError("未找到紀錄")
         self.select = discord.ui.Select(placeholder="請選擇訊息",options=options,custom_id="Sniped_Msg_View")
@@ -110,7 +114,11 @@ class DeleteSnipeMsgView(discord.ui.View):
             queue = delete_snipes[message.guild.id]
             for snipe_message in queue:
                 snipe_message:discord.Message
-                options.append(discord.SelectOption(label=snipe_message.after_message.content[:100], description=f"訊息作者:{snipe_message.after_message.author}",value=str(snipe_message.SerialNo)))
+                if len(snipe_message.after_message.content) != 0:
+                    label = snipe_message.after_message.content[:100]
+                else:
+                    label = "(圖片訊息)"
+                options.append(discord.SelectOption(label=label, description=f"訊息作者:{snipe_message.after_message.author}",value=str(snipe_message.SerialNo)))
         else:
             return ValueError("未找到紀錄")
         self.select = discord.ui.Select(placeholder="請選擇訊息",options=options,custom_id="Deleted_Msg_View")
@@ -130,7 +138,7 @@ class DeleteSnipeMsgView(discord.ui.View):
                 embed.add_field(name="訊息內容",value=snipe_message.after_message.content,inline=False)
                 embed.add_field(name="發送時間",value=f"{snipe_message.after_message.created_at}\n<t:{int(snipe_message.after_message.created_at.timestamp())}>",inline=False)
                 if len(snipe_message.after_message.attachments) != 0:
-                    embed.set_image(url=snipe_message.attachments[0])
+                    embed.set_image(url=snipe_message.after_message.attachments[0])
                 await interaction.message.edit(embed=embed)
                 return
 
