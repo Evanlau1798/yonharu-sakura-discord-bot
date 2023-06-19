@@ -3,8 +3,7 @@ import sqlite3
 import time
 from revChatGPT.V1 import Chatbot
 from utils.EmbedMessage import SakuraEmbedMsg
-import sys
-from io import StringIO
+import asyncio,threading,io
 
 class PsCommands(object):
     def __init__(self,bot) -> None:
@@ -125,34 +124,27 @@ class TagCommands(object):
         self.pinnedMsgDB_cursor.execute("INSERT OR IGNORE INTO PinnedMsg VALUES(?,?,?,?,?,?)",x)
         self.pinnedMsgDB.commit()
 
+    def run_code_thread(self, code_text, message):
+        output_io = io.StringIO()
+        try:
+            locals_dict = {}
+            globals_dict = {"print": lambda *args, **kwargs: print(*args, file=output_io, **kwargs)}
+            exec(code_text, globals_dict, locals_dict)
+            output = output_io.getvalue()
+            embed=SakuraEmbedMsg(title="程式執行測試",description=f"```{code_text}```")
+            embed.add_field(name="程式執行結果",value=output)
+            asyncio.run_coroutine_threadsafe(message.reply(embed=embed), self.bot.loop)
+            return output
+        except Exception as e:
+            error_message = str(e)
+            embed=SakuraEmbedMsg(title="程式執行測試",description=f"```{code_text}```")
+            embed.add_field(name="程式執行過程發生錯誤",value=error_message)
+            asyncio.run_coroutine_threadsafe(message.reply(embed=embed), self.bot.loop)
+
     async def run_code(self,message: discord.Message):
         if message.author.id != 540134212217602050:
             await message.reply("您沒有權限使用此功能", ephemeral=True)
             return
         code_text = message.content.split("```")[1]
-        # 建立一個 StringIO 物件來捕獲輸出
-        stdout = sys.stdout
-        sys.stdout = StringIO()
-
-        try:
-            # 建立 locals 字典
-            locals_dict = {}
-            
-            # 執行程式碼
-            exec(code_text, globals(), locals_dict)
-            
-            # 取得捕獲的輸出
-            output = sys.stdout.getvalue()
-            embed=SakuraEmbedMsg(title="程式執行測試",description=f"```{code_text}```")
-            embed.add_field(name="程式執行結果",value=output)
-            await message.reply(embed=embed)
-            return output
-        except Exception as e:
-            # 捕獲錯誤訊息
-            error_message = str(e)
-            embed=SakuraEmbedMsg(title="程式執行測試",description=f"```{code_text}```")
-            embed.add_field(name="程式執行過程發生錯誤",value=error_message)
-            await message.reply(embed=embed)
-        finally:
-            # 還原標準輸出
-            sys.stdout = stdout
+        t = threading.Thread(target=self.run_code_thread, args=(code_text, message))
+        t.start()
