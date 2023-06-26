@@ -174,7 +174,10 @@ class HandsByeSpecialFeedback():
             return
         list_pos = self.times // 5 if self.times < 26 else 6
         embed = SakuraEmbedMsg(title=f"每日提醒米花女裝")
-        embed.add_field(name=f"今天已有{self.times}人簽到",value=self.notifi_list[list_pos])
+        if random.randint(0,100) > 15: 
+            embed.add_field(name=f"今天已有{self.times}人簽到",value=self.notifi_list[list_pos])
+        else:
+            embed.add_field(name=f"今天已有{self.times}人簽到",value="米花先生，你的祭神進度已經嚴重落後了，請好好注意一下自己的行為。哼~")
         await message.channel.send(embed=embed)
         print("cur time:",datetime.now(),"\ntoday=",today,"\n",self.mod_crossdressing_emoji_used_member_list)
         return
