@@ -10,14 +10,20 @@ from utils.EmbedMessage import SakuraEmbedMsg
 import pytz
 
 class XPCounter(object):
-    def __init__(self):
+    def __init__(self,bot=None):
         self.XPCounter_DB = sqlite3.connect(f"./databases/XPCount.db")
         self.XPCounter_DB_cursor = self.XPCounter_DB.cursor()
+        self.bot = bot
 
     async def analyzeText(self,message: discord.Message):
         self.print_ctx(message=message)
         if self.checkLastMsg(message=message):
             self.addXP(message=message)
+            start = time.time()
+            if self.XPCounter_DB_cursor.execute(f"SELECT * FROM RankRoleEnabledGuild WHERE Guild_id = {message.guild.id}").fetchone() != None:
+                await self.check_role(message=message)
+                end = time.time()
+                print(end-start)
         return
 
     def checkLastMsg(self,message: discord.Message) -> bool:
@@ -138,6 +144,47 @@ class XPCounter(object):
         except:
             conv=str(message.author)+'於'+str(ticks)+'在'+str(message.channel)+'說:'+str(message.content)
         print(conv)
+
+    async def create_rank_role(self,message:discord.ApplicationContext):
+        await message.defer()
+        guild = message.guild
+        lv20 = await guild.create_role(name="Lv.20",reason="機器人等級功能創建之身分組",colour=discord.Color.from_rgb(2, 192, 192))
+        lv40 = await guild.create_role(name="Lv.40",reason="機器人等級功能創建之身分組",colour=discord.Color.from_rgb(51, 102, 255))
+        lv60 = await guild.create_role(name="Lv.60",reason="機器人等級功能創建之身分組",colour=discord.Color.from_rgb(153, 51, 255))
+        lv80 = await guild.create_role(name="Lv.80",reason="機器人等級功能創建之身分組",colour=discord.Color.from_rgb(255, 215, 0))
+        lv100 = await guild.create_role(name="Lv.100",reason="機器人等級功能創建之身分組",colour=discord.Color.from_rgb(255, 0, 0))
+        x = (message.guild_id,lv20.id,lv40.id,lv60.id,lv80.id,lv100.id)
+        self.XPCounter_DB_cursor.execute("INSERT OR IGNORE INTO RankRoleEnabledGuild VALUES(?,?,?,?,?,?)",x)
+        self.XPCounter_DB.commit()
+        return
+    
+    async def delete_rank_role(self,message:discord.ApplicationContext):
+        await message.defer()
+        guild = message.guild
+        Guild_inf = self.XPCounter_DB_cursor.execute(f"SELECT * FROM RankRoleEnabledGuild WHERE Guild_id = {guild.id}").fetchone()
+        if Guild_inf == None:
+            return False
+        guild_id,lv20,lv40,lv60,lv80,lv100 = Guild_inf
+        role_ids = {lv20: None, lv40: None, lv60: None, lv80: None, lv100: None}
+        Guild_roles = await guild.fetch_roles()
+        for role in Guild_roles:
+            if role.id in role_ids:
+                await role.delete(reason="關閉機器人等級功能創建之身分組")
+        self.XPCounter_DB_cursor.execute(f"DELETE FROM RankRoleEnabledGuild WHERE Guild_id = {guild.id}")
+        self.XPCounter_DB.commit()
+        return True
+    
+    async def check_role(self,message:discord.Message):
+        level,cur_xp,rank_xp = self.getRank(user=message.author,guild=message.guild.id)
+        guild_id, lv20, lv40, lv60, lv80, lv100 = self.XPCounter_DB_cursor.execute("SELECT * FROM RankRoleEnabledGuild WHERE Guild_id = ?", (message.guild.id,)).fetchone()
+        role_ids = {20: lv20, 40: lv40, 60: lv60, 80: lv80, 100: lv100}
+        guild_roles = await message.guild.fetch_roles()
+        for role in guild_roles:
+            if role.id in role_ids.values():
+                role_ids = {level: role for level, role_id in role_ids.items() if role_id == role.id}
+        for level_threshold in [20, 40, 60, 80, 100]:
+            if level >= level_threshold:
+                await message.author.add_roles(role_ids[level_threshold],reason="機器人等級功能之等級調整")
 
 class HandsByeSpecialFeedback():
     def __init__(self):

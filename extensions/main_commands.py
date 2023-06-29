@@ -15,6 +15,7 @@ import pixivpy3
 import random
 from bs4 import BeautifulSoup
 from utils.EmbedMessage import SakuraEmbedMsg
+from utils.conversation import XPCounter
 import sqlite3
 
 
@@ -302,6 +303,28 @@ class MainCommands(commands.Cog):
         embed = SakuraEmbedMsg(title="指令使用說明", description="讓您了解如何活用我的力量!")
         view = help.HelpView()
         view.set_message(await message.respond(embed=embed, view=view, ephemeral=True))
+    
+    @commands.slash_command(description="啟動或關閉伺服器等級身分組功能")
+    @default_permissions(administrator=True)
+    @option("options", type=type.string, description="問題", required=True, choices=['開啟','關閉'])
+    async def rankrole(self,message: discord.ApplicationContext,options):
+        start_time = time.time()
+        xp_counter = XPCounter(bot=self.bot)
+        if options == "開啟":
+            if xp_counter.XPCounter_DB_cursor.execute(f"SELECT * FROM RankRoleEnabledGuild WHERE Guild_id = {message.guild_id}").fetchone() == None:
+                await xp_counter.create_rank_role(message=message)
+                await message.respond(embed=SakuraEmbedMsg(title="成功",description="伺服器等級身分組功能已開啟"))
+            else:
+                await message.respond(embed=SakuraEmbedMsg(title="錯誤",description="伺服器等級身分組功能已開啟\n請手動調整身分組至想放的位置"))
+        elif options == "關閉":
+            if await xp_counter.delete_rank_role(message=message):
+                await message.respond(embed=SakuraEmbedMsg(title="成功",description="伺服器等級身分組功能已關閉"))
+            else:
+                await message.respond(embed=SakuraEmbedMsg(title="錯誤",description="伺服器等級身分組功能未開啟"))
+        else:
+            await message.respond(embed=SakuraEmbedMsg(title="錯誤",description="錯誤的選項\n請再試一次"))
+        end_time = time.time()
+        print(end_time-start_time)
 
 class PinnedMsgView(discord.ui.View):
     def __init__(self,guildID = None):
