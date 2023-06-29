@@ -175,16 +175,24 @@ class XPCounter(object):
         return True
     
     async def check_role(self,message:discord.Message):
-        level,cur_xp,rank_xp = self.getRank(user=message.author,guild=message.guild.id)
+        level, cur_xp, rank_xp = self.getRank(user=message.author, guild=message.guild.id)
         guild_id, lv20, lv40, lv60, lv80, lv100 = self.XPCounter_DB_cursor.execute("SELECT * FROM RankRoleEnabledGuild WHERE Guild_id = ?", (message.guild.id,)).fetchone()
         role_ids = {20: lv20, 40: lv40, 60: lv60, 80: lv80, 100: lv100}
-        guild_roles = await message.guild.fetch_roles()
-        for role in guild_roles:
-            if role.id in role_ids.values():
-                role_ids = {level: role for level, role_id in role_ids.items() if role_id == role.id}
-        for level_threshold in [20, 40, 60, 80, 100]:
-            if level >= level_threshold:
-                await message.author.add_roles(role_ids[level_threshold],reason="機器人等級功能之等級調整")
+        guild_roles = {role.id: role for role in await message.guild.fetch_roles()}
+
+        # Get only the roles that exist in the guild
+        role_ids = {level: guild_roles[role_id] for level, role_id in role_ids.items() if role_id in guild_roles}
+
+        # Check only necessary levels and remove roles below the user's level
+        necessary_levels = sorted([threshold for threshold in [20, 40, 60, 80, 100] if level >= threshold])
+
+        for i, level_threshold in enumerate(necessary_levels):
+            if i > 0 and necessary_levels[i-1] < level_threshold:
+                # Remove the role below the current level
+                await message.author.remove_roles(role_ids[necessary_levels[i-1]], reason="機器人等級功能之等級調整")
+            
+            # Assign the role corresponding to the current level
+            await message.author.add_roles(role_ids[level_threshold], reason="機器人等級功能之等級調整")
 
 class HandsByeSpecialFeedback():
     def __init__(self):
