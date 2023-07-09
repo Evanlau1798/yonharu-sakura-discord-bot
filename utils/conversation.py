@@ -26,12 +26,9 @@ class XPCounter(object):
         self.print_ctx(message=message)
         if self.checkLastMsg(message=message):
             self.addXP(message=message)
-            start = time.time()
             guild_config = self.get_guild_config(message.guild.id)
             if guild_config is not None:
                 await self.check_role(message=message, guild_config=guild_config)
-                end = time.time()
-                print(end-start)
         return
 
     def checkLastMsg(self,message: discord.Message) -> bool:
@@ -47,7 +44,7 @@ class XPCounter(object):
     def addXP(self,message: discord.Message):
         id = message.author.id
         guild = message.guild.id
-        name = message.author.display_name + "#" + message.author.discriminator
+        name = message.author.display_name
         xp = self.XPCounter_DB_cursor.execute(f"SELECT XP from TextChannelXP where ID = {id} and Guild = {guild}").fetchone()[0]
         xp = xp + random.randint(15,35)
         self.XPCounter_DB_cursor.execute(f'UPDATE TextChannelXP SET XP = {xp}, Name = "{name}", LastMsg = "{int(time.time())}" WHERE ID = {id} AND Guild = {guild}')
@@ -183,10 +180,11 @@ class XPCounter(object):
         return True
     
     async def check_role(self,message:discord.Message, guild_config):
+        start = time.time()
         level, cur_xp, rank_xp = self.getRank(user=message.author, guild=message.guild.id)
         guild_id, lv20, lv40, lv60, lv80, lv100 = guild_config
         role_ids = {20: lv20, 40: lv40, 60: lv60, 80: lv80, 100: lv100}
-        guild_roles = {role.id: role for role in await message.guild.fetch_roles()}
+        guild_roles = {role.id: role for role in message.guild.roles}
 
         # Get only the roles that exist in the guild
         role_ids = {level: guild_roles[role_id] for level, role_id in role_ids.items() if role_id in guild_roles}
@@ -198,9 +196,12 @@ class XPCounter(object):
             if i > 0 and necessary_levels[i-1] < level_threshold:
                 # Remove the role below the current level
                 await message.author.remove_roles(role_ids[necessary_levels[i-1]], reason="機器人等級功能之等級調整")
-            
-            # Assign the role corresponding to the current level
-            await message.author.add_roles(role_ids[level_threshold], reason="機器人等級功能之等級調整")
+
+            # Check if the user already has the role
+            if role_ids[level_threshold] not in message.author.roles:
+                # Assign the role corresponding to the current level
+                await message.author.add_roles(role_ids[level_threshold], reason="機器人等級功能之等級調整")
+        print(f"{message.author.display_name}的身分組檢查執行時間:",time.time()-start)
 
 class HandsByeSpecialFeedback():
     def __init__(self):
