@@ -8,6 +8,9 @@ from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 from utils.EmbedMessage import SakuraEmbedMsg
 import pytz
+from cachetools import cached, TTLCache
+
+cache = TTLCache(maxsize=100, ttl=3600)
 
 class XPCounter(object):
     def __init__(self,bot=None):
@@ -15,13 +18,18 @@ class XPCounter(object):
         self.XPCounter_DB_cursor = self.XPCounter_DB.cursor()
         self.bot = bot
 
+    @cached(cache)
+    def get_guild_config(self, guild_id: int):
+        return self.XPCounter_DB_cursor.execute("SELECT * FROM RankRoleEnabledGuild WHERE Guild_id = ?", (guild_id,)).fetchone()
+
     async def analyzeText(self,message: discord.Message):
         self.print_ctx(message=message)
         if self.checkLastMsg(message=message):
             self.addXP(message=message)
             start = time.time()
-            if self.XPCounter_DB_cursor.execute(f"SELECT * FROM RankRoleEnabledGuild WHERE Guild_id = {message.guild.id}").fetchone() != None:
-                await self.check_role(message=message)
+            guild_config = self.get_guild_config(message.guild.id)
+            if guild_config is not None:
+                await self.check_role(message=message, guild_config=guild_config)
                 end = time.time()
                 print(end-start)
         return
@@ -161,7 +169,7 @@ class XPCounter(object):
     async def delete_rank_role(self,message:discord.ApplicationContext):
         await message.defer()
         guild = message.guild
-        Guild_inf = self.XPCounter_DB_cursor.execute(f"SELECT * FROM RankRoleEnabledGuild WHERE Guild_id = {guild.id}").fetchone()
+        Guild_inf = self.XPCounter_DB_cursor.execute("SELECT * FROM RankRoleEnabledGuild WHERE Guild_id = ?", (guild_id,)).fetchone()
         if Guild_inf == None:
             return False
         guild_id,lv20,lv40,lv60,lv80,lv100 = Guild_inf
@@ -174,9 +182,9 @@ class XPCounter(object):
         self.XPCounter_DB.commit()
         return True
     
-    async def check_role(self,message:discord.Message):
+    async def check_role(self,message:discord.Message, guild_config):
         level, cur_xp, rank_xp = self.getRank(user=message.author, guild=message.guild.id)
-        guild_id, lv20, lv40, lv60, lv80, lv100 = self.XPCounter_DB_cursor.execute("SELECT * FROM RankRoleEnabledGuild WHERE Guild_id = ?", (message.guild.id,)).fetchone()
+        guild_id, lv20, lv40, lv60, lv80, lv100 = guild_config
         role_ids = {20: lv20, 40: lv40, 60: lv60, 80: lv80, 100: lv100}
         guild_roles = {role.id: role for role in await message.guild.fetch_roles()}
 
@@ -212,7 +220,10 @@ class HandsByeSpecialFeedback():
         if '<:mod_crossdressing:1085171453739139122>' in message.content:
             await self.mod_crossdressing_check(message=message)
         elif '早安' == ctx or '午安' == ctx or '晚安' == ctx and message.reference == None:
-            await message.reply(self.greeting())
+            dt1 = datetime.utcnow().replace(tzinfo=timezone.utc)
+            dt2 = dt1.astimezone(timezone(timedelta(hours=8))) # 轉換台灣時區
+            ticks = int(dt2.strftime("%H"))
+            await message.reply(self.greeting(ticks=ticks))
         else:
             return False
     
@@ -237,18 +248,33 @@ class HandsByeSpecialFeedback():
         print("cur time:",datetime.now(),"\ntoday=",today,"\n",self.mod_crossdressing_emoji_used_member_list)
         return
     
-    def greeting(self):
-        dt1 = datetime.utcnow().replace(tzinfo=timezone.utc)
-        dt2 = dt1.astimezone(timezone(timedelta(hours=8))) # 轉換台灣時區
-        ticks = int(dt2.strftime("%H"))
+    def greeting(self,ticks):
         if ticks >= 5 and ticks <= 11:
-            ctx=['早安~請問要來點甜蜜的早餐嗎？']
+            ctx=['早上了嗎……？不要……！我不想起床！不要叫我起床！啊……但是……早安……',
+                 '早上好……你是不是也有種想要再睡一下的想法啊……？沒事喔……我也這麼想的……',
+                 '早安，櫻今天精神很好喔！大概啦……你呢？有睡飽嗎？沒精神可是不好的喔！']
         elif ticks >= 12 and ticks <= 18:
-            ctx=['午安~要和我共進下午茶嗎？']
+            ctx=['午安！午餐吃甚麼？要喝下午茶嗎？嘛……我的話……陪你也不是不行喔。',
+                 '中午了呢，嗯……太陽很大的時候總是會很懶散呢～但是！陰天的話也會讓人很想睡覺呢……不……人們好像不分時間都很懶散呢……',
+                 '櫻總是在想啊……如果在這樣悠閒的午後能夠安靜地躺在草地上，甚麼事都不做，就這樣呆呆地看著天空，這會是多麼愜意的感覺呢？']
         elif ticks >= 19 and ticks <= 23:
-            ctx=['晚安~祝你有個美夢～']
-        elif ticks >= 0 and ticks <= 3:
-            ctx=['今晚不讓你睡喔~♥王子大人']
+            ctx=['晚安～希望今天能有個好夢，如果睡不著的話，我也是可以說說床邊故事的喔～從前從前，有一個………………喂！讓我說完！',
+                 '晚上好，身為夜貓子的你，或者是健康乖寶寶的你，要睡了嗎？不睡的話要幹嘛呢？要一起玩嗎？',
+                 '對於櫻來說啊……晚上的時候是很重要的喔，寂靜的深夜之中，只有自己與外頭點點的燈光，平靜，而且美妙。']
+        elif ticks >= 0 and ticks <= 4:
+            ctx=['喂喂喂……你還沒睡嗎？再怎麼說也太晚了喔，不睡覺明天怎麼會有精神呢！快去睡覺了！']
+        '''紀念美好舊時光的程式碼
         elif ticks == 4 :
-            ctx=['王子大人，啊……啊，不要這樣♥']
+            ctx=['王子大人，啊……啊，不要這樣♥']'''
+        return random.choice(ctx)
+    
+    def special_greeting(self,ticks:int): #待新增回應
+        if ticks >= 5 and ticks <= 11:
+            ctx=['早上好！怎麼樣？今天有精神嗎？我今天很有精神喔！要說為什麼的話……因為今天是和你在一起啊！']
+        elif ticks >= 12 and ticks <= 18:
+            ctx=['']
+        elif ticks >= 19 and ticks <= 23:
+            ctx=['']
+        elif ticks >= 0 and ticks <= 4:
+            ctx=['']
         return random.choice(ctx)

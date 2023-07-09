@@ -11,3 +11,4 @@ python-dotenv
 pillow
 revChatGPT
 pytz
+cachetools
