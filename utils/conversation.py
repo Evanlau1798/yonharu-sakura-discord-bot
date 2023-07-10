@@ -68,7 +68,7 @@ class XPCounter(object):
 
     def newUser(self,message: discord.Message):
         print("New User")
-        name = message.author.display_name + "#" + message.author.discriminator
+        name = message.author.display_name
         id = message.author.id
         guild = message.guild.id
         xp = random.randint(15,35)
@@ -87,7 +87,7 @@ class XPCounter(object):
 
     def newVoiceUser(self,user:discord.User,guild:discord.Guild):
         print("New Voice User")
-        name = user.display_name + "#" + user.discriminator
+        name = user.display_name
         id = user.id
         guild = guild.id
         xp = 1
@@ -97,7 +97,7 @@ class XPCounter(object):
         return
     
     def addVoiceXP(self,user:discord.User,guild:discord.Guild):
-        name = user.display_name + "#" + user.discriminator
+        name = user.display_name
         id = user.id
         guild_id = guild.id
         if self.XPCounter_DB_cursor.execute(f"SELECT * from VoiceChannelXP where ID = {id} and Guild = {guild_id}").fetchone() == None:
