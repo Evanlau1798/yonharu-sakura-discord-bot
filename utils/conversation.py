@@ -153,11 +153,11 @@ class XPCounter(object):
     async def create_rank_role(self,message:discord.ApplicationContext):
         await message.defer()
         guild = message.guild
-        lv20 = await guild.create_role(name="Lv.20",reason="機器人等級功能創建之身分組",colour=discord.Color.from_rgb(2, 192, 192))
-        lv40 = await guild.create_role(name="Lv.40",reason="機器人等級功能創建之身分組",colour=discord.Color.from_rgb(51, 102, 255))
-        lv60 = await guild.create_role(name="Lv.60",reason="機器人等級功能創建之身分組",colour=discord.Color.from_rgb(153, 51, 255))
-        lv80 = await guild.create_role(name="Lv.80",reason="機器人等級功能創建之身分組",colour=discord.Color.from_rgb(255, 215, 0))
-        lv100 = await guild.create_role(name="Lv.100",reason="機器人等級功能創建之身分組",colour=discord.Color.from_rgb(255, 0, 0))
+        lv20 = await guild.create_role(name="Lv.20",reason="機器人等級功能創建之身分組",colour=discord.Color.from_rgb(84, 186, 191))
+        lv40 = await guild.create_role(name="Lv.40",reason="機器人等級功能創建之身分組",colour=discord.Color.from_rgb(111, 148, 188))
+        lv60 = await guild.create_role(name="Lv.60",reason="機器人等級功能創建之身分組",colour=discord.Color.from_rgb(150, 128, 187))
+        lv80 = await guild.create_role(name="Lv.80",reason="機器人等級功能創建之身分組",colour=discord.Color.from_rgb(203, 200, 161))
+        lv100 = await guild.create_role(name="Lv.100",reason="機器人等級功能創建之身分組",colour=discord.Color.from_rgb(212, 122, 122))
         x = (message.guild_id,lv20.id,lv40.id,lv60.id,lv80.id,lv100.id)
         self.XPCounter_DB_cursor.execute("INSERT OR IGNORE INTO RankRoleEnabledGuild VALUES(?,?,?,?,?,?)",x)
         self.XPCounter_DB.commit()

@@ -54,7 +54,8 @@ class SnipeEventsListener(commands.Cog):
     async def on_message_edit(self,before:discord.Message, after:discord.Message):
         print("舊:",before.content,"新:",after.content)
         global delete_snipes
-        if before.author.bot:return
+        if before.author.bot or before.embeds or after.embeds or (before.content == "" and after.content.startswith("http")):
+            return
         guild_id = before.guild.id
         message = SerialNoAdder(before=before, after=after, SerialNo=self.edit_serial_no)
         self.edit_serial_no += 1
