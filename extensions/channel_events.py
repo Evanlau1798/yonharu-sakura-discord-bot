@@ -1,18 +1,24 @@
-import discord
+import discord,asyncio,os,sqlite3,random,time,requests
 from discord.ext import commands
 from discord import default_permissions,option,OptionChoice
 from discord import SlashCommandOptionType as type
-import asyncio
 from datetime import datetime
 from utils.EmbedMessage import SakuraEmbedMsg
 from utils.conversation import XPCounter,HandsByeSpecialFeedback
-import os
 from utils.personal_commands import PsCommands,TagCommands
 from discord.ui import InputText,Select,view
-import sqlite3
-import random
-import time
 from utils.game import game
+from dotenv import load_dotenv
+import textwrap
+from PIL import Image
+from io import BytesIO
+import google.generativeai as genai
+import google.ai.generativelanguage as glm
+from IPython.display import Markdown
+
+load_dotenv()
+
+OpenAiAPIKey = os.getenv("OPENAPIKEY")
 
 class EventsListener(commands.Cog):
     def __init__(self, bot:discord.Bot):
@@ -137,11 +143,7 @@ class EventsListener(commands.Cog):
         if message.author.bot == True:  # 排除自己的訊息
             return
         if message.author.id == 540134212217602050:
-            if message.channel.id == 910789973098237993:
-                async with message.channel.typing():
-                    await message.channel.send(await self.ps_commands.chat(message=message))
-                    return
-            elif message.content.startswith('!'):  # 個人指令判斷
+            if message.content.startswith('!'):  # 個人指令判斷
                 await self.ps_commands.select_commands(message=message)
         if message.guild.id == 887172437903560784: #斷手群discord伺服器特殊回應
             await self.handsByeSpFB.event(message=message)
@@ -150,6 +152,8 @@ class EventsListener(commands.Cog):
         if self.quetion != None and message.reference != None:
             if message.reference.message_id in self.quetion.msg_id:
                 await self.game_process(message)
+        if isinstance(message.channel, discord.DMChannel):
+            return
         await self.conv.analyzeText(message=message)
 
     async def user_vioce_channel_XP_task(self):
@@ -248,5 +252,135 @@ class CreateChannelModal(discord.ui.Modal):
             db_cursor.execute("INSERT OR IGNORE INTO CreatedChannel VALUES(?,?,?)",x)
             db.commit()
 
+#==================基於Google Gemini之AI對話======================
+class AiChat(commands.Cog):
+    def __init__(self, bot):
+        self.bot:discord.Bot = bot
+        genai.configure(api_key=os.environ["GEMINIAPIKEY"])
+        self.model = genai.GenerativeModel('gemini-pro')
+        self.vModel = genai.GenerativeModel('gemini-pro-vision')
+        self.userHistory = {}
+        self.userVisionHistory = {}
+
+    def getUserHistory(self, user:discord.User,isVision):
+        id = user.id
+        if isVision:
+            if self.userVisionHistory.get(id):
+                return self.userVisionHistory[id]
+            chat = self.vModel.start_chat(history=[])
+            self.userVisionHistory.update({id: chat})
+        else:
+            if self.userHistory.get(id):
+                return self.userHistory[id]
+            chat = self.model.start_chat(history=AiChat.getStartupPrompt())
+            self.userHistory.update({id: chat})
+            return self.userHistory[id]    
+
+    async def chat(self, user:discord.User = None, content:str = "", tmp_msg:discord.Interaction = None):
+        chat:genai.ChatSession = self.getUserHistory(user=user, isVision=False)
+        if tmp_msg:
+            await tmp_msg.edit_original_response(embed = SakuraEmbedMsg("Gemini正在輸入回應...", loading=True))
+        content = "請以\"四春櫻\"的身份並以繁體中文進行回答。\n\n" + content
+        response = chat.send_message(content)
+        self.userHistory.update({user.id: chat})
+        return self.to_markdown(response.text)
+    
+    @commands.slash_command(name="chat", description="與我聊天吧!(基於Google Gemini)")
+    @option("text", type=type.string, description="想跟我聊甚麼?", required=True)
+    async def commandChat(self,message: discord.ApplicationContext,text:str):
+        tmp = await message.respond(embed = SakuraEmbedMsg("正在等待Gemini回應...", loading=True))
+        reply:Markdown = await self.chat(user=message.author,content=text,tmp_msg=tmp)
+        await tmp.edit_original_response(embed=SakuraEmbedMsg(title="Gemini的回應", description=reply.data))
+    
+    @staticmethod
+    async def singleChat(content, pic=None):
+        if pic:
+            first_pic_url = pic[0]
+            response = requests.get(first_pic_url.url)
+            img = Image.open(BytesIO(response.content))
+            model = genai.GenerativeModel('gemini-pro-vision')
+            response = model.generate_content(contents=[content,img])
+        else:
+            content = "請以\"四春櫻\"的身份並以繁體中文進行回答。\n\n" + content
+            model = genai.GenerativeModel('gemini-pro')
+            chat = model.start_chat(history=AiChat.getStartupPrompt())
+            response = chat.send_message(content=content)
+        return AiChat.to_markdown(response.text).data
+    
+    @staticmethod
+    def getStartupPrompt():
+        startupPrompt = [glm.Content(parts = [glm.Part(text=os.environ["PersonaInfo"])])]
+        startupPrompt[0].role = "user"
+        startupPrompt.append(glm.Content(parts = [glm.Part(text="我知道了")]))
+        startupPrompt[1].role = "model"
+        return startupPrompt
+    
+    @staticmethod
+    def to_markdown(text):
+        text = text.replace('•', '  *')
+        return Markdown(textwrap.indent(text, '> ', predicate=lambda _: True))
+
+'''class AiChat(commands.Cog):
+    def __init__(self, bot):
+        self.bot:discord.Bot = bot
+        self.persona_info = os.getenv("PersonaInfo")
+        openai.api_key = OpenAiAPIKey
+
+    async def extract_city_from_input(self, input_text):
+        response = openai.Completion.create(
+            model="text-davinci-002",
+            prompt=f"從這段輸入中提取城市名稱: '{input_text}'\n",
+            max_tokens=10
+        )
+        city_name = response.choices[0].text.strip().split('\n')[0]
+        return city_name
+
+    async def execute_command(self, ctx, command, **kwargs):
+        if command == "儲存消息":
+            await self.bot.get_command('pin_msg')(ctx, **kwargs)
+        elif command == "查詢天氣":
+            await self.bot.get_command('weather')(ctx, **kwargs)
+        # ... 根據您的指令添加更多邏輯
+
+    async def handle_command(self, ctx:discord.Message, message):
+        response = openai.Completion.create(
+            model="text-davinci-002",  # 使用 GPT-3
+            prompt=f"判斷這個用戶的輸入是否涉及指令: '{message.content}'\n\n",
+            max_tokens=50
+        )
+
+        command_response = response.choices[0].text.strip()
+        if "翻譯" in command_response:
+            await self.execute_command(ctx, "翻譯", text=message.content)
+        elif "天氣" in command_response:
+            city = self.extract_city_from_input(message.content)  # 提取城市名稱的邏輯
+            await self.execute_command(ctx, "查詢天氣", weather=city)
+        # ... 添加更多判斷和執行邏輯
+        else:
+        # 使用 GPT-4 進行基於人設的回應
+        async with ctx.channel.typing():
+            persona_response = openai.ChatCompletion.create(
+                    model="gpt-4-1106-preview",
+                    messages=[
+                        {"role": "system", "content": self.persona_info},
+                        {"role": "user", "content": f"請以四春櫻的人設回應以下對話\n\n{message.content}"}
+                    ],
+                    max_tokens=1000
+                )
+            await ctx.channel.send(persona_response.choices[0].message["content"])
+
+
+    @commands.slash_command(name="chat", description="與我聊天吧!(基於GPT-4)")
+    async def chat(self, ctx, *, message: str):
+        await self.handle_command(ctx, message)
+
+    @commands.Cog.listener()
+    async def on_message(self, message:discord.Message):
+        if message.author == self.bot.user or not isinstance(message.channel, discord.DMChannel):
+            return
+        ctx = self.bot.get_message(message.id)
+        await self.handle_command(ctx, message)'''
+
 def setup(bot:discord.Bot):
     bot.add_cog(EventsListener(bot))
+    bot.add_cog(AiChat(bot))

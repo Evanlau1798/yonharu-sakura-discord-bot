@@ -1,9 +1,9 @@
 import discord
 import sqlite3
 import time
-from revChatGPT.V1 import Chatbot
 from utils.EmbedMessage import SakuraEmbedMsg
 import asyncio,threading,io
+import extensions.channel_events as events
 
 class PsCommands(object):
     def __init__(self,bot) -> None:
@@ -14,8 +14,6 @@ class PsCommands(object):
             "sqladd": self.sqladd,
             "sqldel": self.sqldel
         }
-        with open("chatgpt_key","r") as key:
-            self.chatbot = Chatbot(config={"access_token":key.read()})
             
 
     async def select_commands(self,message: discord.Message):
@@ -69,20 +67,10 @@ class PsCommands(object):
             )
             if cursor.rowcount == 1:
                 await message.delete()
-
-    async def chat(self,message: discord.Message):
-        prompt = message.content
-        response = ""
-        try:
-            for data in self.chatbot.ask(prompt):
-                response = data["message"]
-            return response
-        except Exception as e:
-            return str(e)
         
 class TagCommands(object):
     def __init__(self,bot) -> None:
-        self.bot = bot
+        self.bot:discord.Client = bot
         self.command_dict = {
             "幫我釘選": self.ping_msg,
             "runcode": self.run_code
@@ -99,9 +87,12 @@ class TagCommands(object):
         func = self.command_dict.get(command)
         if func is not None:
             await func(message=message)
-            return True
         else:
-            return False
+            try:
+                await message.channel.trigger_typing()
+                await message.reply(content=await events.AiChat.singleChat(content=command,pic=message.attachments))
+            except Exception as e:
+                await message.reply(embed=SakuraEmbedMsg(title="訊息無法傳送",description=str(e.args[0])))
 
     async def ping_msg(self,message: discord.Message):
         ctx:discord.Message = message.reference.cached_message
