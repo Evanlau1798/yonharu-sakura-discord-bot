@@ -21,9 +21,9 @@ import sqlite3
 
 PATH = os.path.join(os.path.dirname(__file__))
 translator = Translator()
-api_key = '576bfa89b78416c5bb19d6bc92f97a1e'
+api_key = os.getenv('OPENWEATHERKEY')
 base_url = "http://api.openweathermap.org/data/2.5/weather?"
-_REFRESH_TOKEN = 'eiDaafkFze2rPaw-X2yaOXdiGpwpNpwvrIr_1jVTQww'
+_REFRESH_TOKEN = os.getenv('PIXIV_REFRESH_TOKEN')
 pinnedMsgDB = sqlite3.connect(f"./databases/PinnedMsg.db")
 pinnedMsgDB_cursor = pinnedMsgDB.cursor()
 

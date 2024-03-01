@@ -4,6 +4,7 @@ import time
 from utils.EmbedMessage import SakuraEmbedMsg
 import asyncio,threading,io
 import extensions.channel_events as events
+from extensions.search import GoogleSearch
 
 class PsCommands(object):
     def __init__(self,bot) -> None:
@@ -90,7 +91,7 @@ class TagCommands(object):
         else:
             try:
                 await message.channel.trigger_typing()
-                await message.reply(content=await events.AiChat.singleChat(content=command,pic=message.attachments))
+                await events.AiChat.singleChat(content=command,pic=message.attachments,message=message)
             except Exception as e:
                 await message.reply(embed=SakuraEmbedMsg(title="訊息無法傳送",description=str(e.args[0])))
 
@@ -132,10 +133,15 @@ class TagCommands(object):
             embed.add_field(name="程式執行過程發生錯誤",value=error_message)
             asyncio.run_coroutine_threadsafe(message.reply(embed=embed), self.bot.loop)
 
+    async def search(self, message: discord.Message):
+        content = message.content.removeprefix(f"<@909796683418832956> search\n")
+        search = GoogleSearch()
+        await message.channel.send(search.search(content))
+
     async def run_code(self,message: discord.Message):
         if message.author.id != 540134212217602050:
             await message.reply("您沒有權限使用此功能", ephemeral=True)
             return
-        code_text = message.content.split("```")[1]
+        '''code_text = message.content.split("```")[1]
         t = threading.Thread(target=self.run_code_thread, args=(code_text, message))
-        t.start()
+        t.start()'''

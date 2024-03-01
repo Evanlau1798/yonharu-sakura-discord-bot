@@ -1,4 +1,4 @@
-import discord,asyncio,os,sqlite3,random,time,requests
+import discord,asyncio,os,sqlite3,random,time,requests,pickle,io
 from discord.ext import commands
 from discord import default_permissions,option,OptionChoice
 from discord import SlashCommandOptionType as type
@@ -15,10 +15,11 @@ from io import BytesIO
 import google.generativeai as genai
 import google.ai.generativelanguage as glm
 from IPython.display import Markdown
+from extensions.search import GoogleSearch
 
 load_dotenv()
 
-OpenAiAPIKey = os.getenv("OPENAPIKEY")
+#OpenAiAPIKey = os.getenv("OPENAPIKEY")
 
 class EventsListener(commands.Cog):
     def __init__(self, bot:discord.Bot):
@@ -30,6 +31,7 @@ class EventsListener(commands.Cog):
         self.channels_DB = sqlite3.connect(f"./databases/channels.db")
         self.channels_DB_cursor = self.channels_DB.cursor()
         self.quetion = None
+        self.dmAichat = AiChat(bot=self.bot)
         loop = asyncio.get_event_loop()
         loop.create_task(self.user_vioce_channel_XP_task())
 
@@ -145,14 +147,32 @@ class EventsListener(commands.Cog):
         if message.author.id == 540134212217602050:
             if message.content.startswith('!'):  # 個人指令判斷
                 await self.ps_commands.select_commands(message=message)
-        if message.guild.id == 887172437903560784: #斷手群discord伺服器特殊回應
-            await self.handsByeSpFB.event(message=message)
+        try:
+            if message.guild.id == 887172437903560784: #斷手群discord伺服器特殊回應
+                await self.handsByeSpFB.event(message=message)
+        except:
+            pass
         if "<@909796683418832956>" in message.content:
+            print(message.reference)
             await self.tag_commands.select_commands(message=message)
         if self.quetion != None and message.reference != None:
             if message.reference.message_id in self.quetion.msg_id:
                 await self.game_process(message)
+        #print(message.reference.resolved.content)
+        if message.reference != None and 909796683418832956 == message.reference.resolved.author.id:
+            reply_msg:discord.Message = self.bot.get_message(message.reference.message_id)
+            await message.channel.trigger_typing()
+            try:
+                await AiChat.singleChat(content=message.content, message=message, reference_msg=reply_msg, bot=self.bot)
+            except Exception as e:
+                await message.reply(embed=SakuraEmbedMsg(title="訊息無法傳送",description=str(e.args[0])))
         if isinstance(message.channel, discord.DMChannel):
+            try:
+                await message.channel.trigger_typing()
+                reply = await self.dmAichat.chat(user=message.author, content = message.content)
+                await message.channel.send(content = reply)
+            except Exception as e:
+                await message.reply(embed=SakuraEmbedMsg(title="訊息無法傳送",description=str(e.args[0])))
             return
         await self.conv.analyzeText(message=message)
 
@@ -257,43 +277,135 @@ class AiChat(commands.Cog):
     def __init__(self, bot):
         self.bot:discord.Bot = bot
         genai.configure(api_key=os.environ["GEMINIAPIKEY"])
-        self.model = genai.GenerativeModel('gemini-pro')
-        self.vModel = genai.GenerativeModel('gemini-pro-vision')
-        self.userHistory = {}
-        self.userVisionHistory = {}
+        self.model = genai.GenerativeModel('gemini-1.0-pro-latest')
+        self.vModel = genai.GenerativeModel('gemini-1.0-pro-vision-latest')
+        self.userHistory = self.load_user_history()
 
-    def getUserHistory(self, user:discord.User,isVision):
+    def getUserHistory(self, user:discord.User):
+        self.userHistory = self.load_user_history()
         id = user.id
-        if isVision:
-            if self.userVisionHistory.get(id):
-                return self.userVisionHistory[id]
-            chat = self.vModel.start_chat(history=[])
-            self.userVisionHistory.update({id: chat})
-        else:
-            if self.userHistory.get(id):
-                return self.userHistory[id]
-            chat = self.model.start_chat(history=AiChat.getStartupPrompt())
-            self.userHistory.update({id: chat})
-            return self.userHistory[id]    
+        history = self.userHistory[user.id] if self.userHistory.get(id) else AiChat.getStartupPrompt()
+        chat = self.model.start_chat(history=history)
+        return chat
+    
+    def load_user_history(self) -> dict:
+        try:
+            with open('./AIHistory/user_history.pickle', 'rb') as f:
+                return pickle.load(f)
+        except (FileNotFoundError, EOFError):
+            return {}
 
+    def save_user_history(self):
+        with open('./AIHistory/user_history.pickle', 'wb') as f:
+            pickle.dump(self.userHistory, f)
+    
     async def chat(self, user:discord.User = None, content:str = "", tmp_msg:discord.Interaction = None):
-        chat:genai.ChatSession = self.getUserHistory(user=user, isVision=False)
+        chat:genai.ChatSession = self.getUserHistory(user=user)
+        chat_len = len(chat.history) / 2
+        if chat_len > 101:
+            raise Exception("您目前已達到對話上限(100次)，請使用/forgotjuice指令來餵四春櫻遺忘汁(重置對話)\n也可以在刪除對話以前使用/chat_history將對話導出保存。")
         if tmp_msg:
-            await tmp_msg.edit_original_response(embed = SakuraEmbedMsg("Gemini正在輸入回應...", loading=True))
-        content = "請以\"四春櫻\"的身份並以繁體中文進行回答。\n\n" + content
-        response = chat.send_message(content)
-        self.userHistory.update({user.id: chat})
-        return self.to_markdown(response.text)
+            await tmp_msg.edit_original_response(embed = SakuraEmbedMsg("四春櫻正在輸入回應...", loading=True))
+        nowTime = datetime.now().strftime("目前的時間(24小時制): %Y/%m/%d %H:%M:%S \n")
+        content = nowTime + os.getenv('PersonaStartPrompt') + content
+        response = chat.send_message(content, safety_settings={'HARASSMENT':'block_none',"HATE":'SEX',"HATE":'block_none',"DANGER":'block_none'})
+        self.userHistory.update({user.id: chat.history})
+        self.save_user_history()
+        #return self.to_markdown(response.text)
+        if chat_len > 80:
+            reply_text = response.text + "\n\n" + "提醒:您目前已對話了(" + chat_len + "/100)回，請確保您在達到對話上限前結束對話。"
+            return reply_text
+        else:
+            return response.text
     
     @commands.slash_command(name="chat", description="與我聊天吧!(基於Google Gemini)")
     @option("text", type=type.string, description="想跟我聊甚麼?", required=True)
     async def commandChat(self,message: discord.ApplicationContext,text:str):
-        tmp = await message.respond(embed = SakuraEmbedMsg("正在等待Gemini回應...", loading=True))
-        reply:Markdown = await self.chat(user=message.author,content=text,tmp_msg=tmp)
-        await tmp.edit_original_response(embed=SakuraEmbedMsg(title="Gemini的回應", description=reply.data))
-    
+        tmp = await message.respond(embed = SakuraEmbedMsg("正在等待四春櫻回應...", loading=True))
+        try:
+            reply = await self.chat(user=message.author,content=text,tmp_msg=tmp)
+            await tmp.edit_original_response(embed=SakuraEmbedMsg(title="四春櫻的回應", description=reply))
+        except Exception as e:
+            await tmp.edit_original_response(embed=SakuraEmbedMsg(title="訊息無法傳送",description=str(e.args[0])))
+
+    @commands.slash_command(name="forgotjuice", description="讓我喝下遺忘汁(重置AI對話)")
+    async def forgotjuice(self, message:discord.ApplicationContext):
+        userID = message.author.id
+        try:
+            chat = self.model.start_chat(history=AiChat.getStartupPrompt())
+            self.userHistory.update({userID: chat.history})
+            self.save_user_history()
+            await message.respond(content=f"{message.author.mention} 已成功讓四春櫻喝下遺忘汁")
+        except Exception as e:
+            await message.respond(embed=SakuraEmbedMsg(title="訊息無法傳送",description=str(e.args[0])))
+
+    @commands.slash_command(name="chat_history", description="將目前的AI對話紀錄私訊給您")
+    async def chat_history(self, ctx: discord.ApplicationContext):
+        user_id = ctx.author.id
+        # 從 userHistory   中找到指定使用者的對話紀錄
+        user_history = self.userHistory.get(user_id)
+        if not user_history:
+            await ctx.respond(embed=SakuraEmbedMsg("錯誤", "該使用者的對話紀錄不存在"))
+            return
+
+        # 將對話紀錄整理成一個字符串
+        chat_history_str = ""
+        for entry in user_history[6:]:
+            role = entry.role
+            for part in entry.parts:
+                chat_history_str += f"{role}: {part.text}\n"
+
+        #  使用 io.BytesIO 暫存 txt 檔案的內容
+        chat_history_bytes = chat_history_str.encode('utf-8')
+        chat_history_io = io.BytesIO(chat_history_bytes)
+
+        # 將 txt 檔案私訊給使用者
+        await ctx.author.send(file=discord.File(chat_history_io, f"{user_id}_chat_history.txt"))
+
+        await ctx.respond(embed=SakuraEmbedMsg("成功", "對話紀錄已私訊給您"))
+
     @staticmethod
-    async def singleChat(content, pic=None):
+    async def singleChat(content, pic=None, message:discord.Message = None, reference_msg:discord.Message = None,  bot:discord.Client = None):
+        if pic:
+            first_pic_url = pic[0]
+            response = requests.get(first_pic_url.url)
+            img = Image.open(BytesIO(response.content))
+            model = genai.GenerativeModel('gemini-1.0-pro-vision-latest')
+            #content = '請以\"四春櫻\"的第一人稱身份並以繁體中文進行回答，避免說出"作為"或"身為"之類的怪異發言，並且不要在回應中提到任何在之前的對話中提出的任何提示詞。\n\n' + os.environ["PersonaInfo"] + "\n" + content
+            response = model.generate_content(contents=[content,img])
+        else:
+            user = message.guild.get_member(message.author.id)
+            name = message.author.name if user is None else user.display_name
+            nowTime = datetime.now().strftime("目前的時間: %Y/%m/%d %H:%M:%S \n")
+            
+            model = genai.GenerativeModel('gemini-1.0-pro-latest')
+            chat = model.start_chat(history=AiChat.getStartupPrompt())
+            if reference_msg:
+                chat = AiChat.get_chat_history(message=reference_msg, chat=chat, bot=bot)
+                content = nowTime + os.getenv('PersonaStartPrompt') + "目前與您對話的人是" + name + "，請接續上一段對話\n\n" + content
+            else:
+                content = nowTime + os.getenv('PersonaStartPrompt') + "與您對話的人是" + name + "\n\n" + content
+            response = chat.send_message(content=content, safety_settings={'HARASSMENT':'block_none',"HATE":'SEX',"HATE":'block_none',"DANGER":'block_none'})
+        await message.reply(response.text)
+
+    @staticmethod
+    def get_chat_history(message:discord.Message, chat:genai.ChatSession, bot:discord.Client = None) -> genai.ChatSession:
+        if message.reference.resolved.reference != None:
+            ref_message = bot.get_message(message.reference.resolved.reference.message_id)
+            chat = AiChat.get_chat_history(message=ref_message, chat=chat, bot=bot)
+        msg_send = message.reference.resolved.content
+        msg_respond = message.content
+        chat.history.append(glm.Content(parts = [glm.Part(text=msg_send)]))
+        history_len = len(chat.history)
+        chat.history[history_len - 1].role = "user"
+        chat.history.append(glm.Content(parts = [glm.Part(text=msg_respond)]))
+        chat.history[history_len].role = "model"
+        return chat
+
+    
+    '''@staticmethod
+    async def singleChat(content, pic = None, message:discord.Message = None):
+        search = GoogleSearch()
         if pic:
             first_pic_url = pic[0]
             response = requests.get(first_pic_url.url)
@@ -301,22 +413,45 @@ class AiChat(commands.Cog):
             model = genai.GenerativeModel('gemini-pro-vision')
             response = model.generate_content(contents=[content,img])
         else:
-            content = "請以\"四春櫻\"的身份並以繁體中文進行回答。\n\n" + content
+            content = "請以\"四春櫻\"的身份並以繁體中文進行回答。\n\n請注意，如果詢問的問題有必要搜尋網路，請說出「請幫我搜尋:{您想要的搜尋文字}」，對話會回傳從Google的搜尋結果。如果要開啟搜尋到的網頁，請說出「請幫我打開:{您想要打開的網頁url}」以獲得網頁的html程式碼。如果詢問的是特定的資訊(如:時間)，請打開html網頁以確定，而不是單純查看網頁預覽文字。\n\n" + content
             model = genai.GenerativeModel('gemini-pro')
             chat = model.start_chat(history=AiChat.getStartupPrompt())
-            response = chat.send_message(content=content)
-        return AiChat.to_markdown(response.text).data
+            res asponse = chat.send_message(content=content)
+        if "請幫我搜尋:" in response.text or "請幫我搜尋：" in response.text:
+            search_text = response.text.split("請幫我搜尋:")[1] if "請幫我搜尋:" in response.text else response.text.split("請幫我搜尋：")[1]
+            msg_tmp = await message.reply(content=f'<a:loading:1050076012853080214> 四春櫻正在上網尋找"{search_text}"......')
+            try:
+                content = str(search.search(search_text))
+                response = chat.send_message(content=content)
+                if "請幫我打開" in response.text:
+                    search_text = response.text.split("請幫我打開:")[1] if "請幫我打開:" in response.text else response.text.split("請幫我打開：")[1]
+                    await msg_tmp.edit(content=f'<a:loading:1050076012853080214> 四春櫻正在瀏覽 "{search_text}"......')
+                    content = str(search.get_html(search_text))
+                    response = chat.send_message(content=content)
+                    await msg_tmp.edit(content=AiChat.to_markdown(response.text).data)
+            except Exception as e:
+                await msg_tmp.edit(embed=SakuraEmbedMsg(title="訊息無法傳送",description=str(e.args[0])))
+        else:
+            await message.reply(AiChat.to_markdown(response.text).data)'''
     
     @staticmethod
     def getStartupPrompt():
-        startupPrompt = [glm.Content(parts = [glm.Part(text=os.environ["PersonaInfo"])])]
+        startupPrompt = [glm.Content(parts = [glm.Part(text=os.environ["PersonaInfo1"])])]
         startupPrompt[0].role = "user"
-        startupPrompt.append(glm.Content(parts = [glm.Part(text="我知道了")]))
+        startupPrompt.append(glm.Content(parts = [glm.Part(text="我知道了。")]))
         startupPrompt[1].role = "model"
+        startupPrompt.append(glm.Content(parts = [glm.Part(text=os.environ["PersonaInfo2"])]))
+        startupPrompt[2].role = "user"
+        startupPrompt.append(glm.Content(parts = [glm.Part(text='我知道了。')]))
+        startupPrompt[3].role = "model"
+        startupPrompt.append(glm.Content(parts = [glm.Part(text=os.environ["PersonaInfo3"])]))
+        startupPrompt[4].role = "user"
+        startupPrompt.append(glm.Content(parts = [glm.Part(text='我知道了，我會完全融入"四春櫻"的人設中，並且會遵守時間相關要求。')]))
+        startupPrompt[5].role = "model"
         return startupPrompt
     
     @staticmethod
-    def to_markdown(text):
+    def to_markdown(text:str):
         text = text.replace('•', '  *')
         return Markdown(textwrap.indent(text, '> ', predicate=lambda _: True))
 
