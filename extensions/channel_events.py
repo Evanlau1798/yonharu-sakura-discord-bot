@@ -18,6 +18,8 @@ from IPython.display import Markdown
 from extensions.search import GoogleSearch
 
 load_dotenv()
+GEMINI_MODEL = "gemini-1.0-pro-latest"
+GEMINI_VISION_MODEL = "gemini-1.0-pro-vision-latest"
 
 #OpenAiAPIKey = os.getenv("OPENAPIKEY")
 
@@ -277,8 +279,8 @@ class AiChat(commands.Cog):
     def __init__(self, bot):
         self.bot:discord.Bot = bot
         genai.configure(api_key=os.environ["GEMINIAPIKEY"])
-        self.model = genai.GenerativeModel('gemini-1.0-pro-latest')
-        self.vModel = genai.GenerativeModel('gemini-1.0-pro-vision-latest')
+        self.model = genai.GenerativeModel(GEMINI_MODEL)
+        self.vModel = genai.GenerativeModel(GEMINI_VISION_MODEL)
         self.userHistory = self.load_user_history()
 
     def getUserHistory(self, user:discord.User):
@@ -308,7 +310,7 @@ class AiChat(commands.Cog):
             await tmp_msg.edit_original_response(embed = SakuraEmbedMsg("四春櫻正在輸入回應...", loading=True))
         nowTime = datetime.now().strftime("目前的時間(24小時制): %Y/%m/%d %H:%M:%S \n")
         content = nowTime + os.getenv('PersonaStartPrompt') + content
-        response = chat.send_message(content, safety_settings={'HARASSMENT':'block_none',"HATE":'SEX',"HATE":'block_none',"DANGER":'block_none'})
+        response = await chat.send_message_async(content, safety_settings={'HARASSMENT':'block_none',"SEX":'block_none',"HATE":'block_none',"DANGER":'block_none'})
         self.userHistory.update({user.id: chat.history})
         self.save_user_history()
         #return self.to_markdown(response.text)
@@ -350,7 +352,7 @@ class AiChat(commands.Cog):
 
         # 將對話紀錄整理成一個字符串
         chat_history_str = ""
-        for entry in user_history[6:]:
+        for entry in user_history[8:]:
             role = entry.role
             for part in entry.parts:
                 chat_history_str += f"{role}: {part.text}\n"
@@ -370,22 +372,22 @@ class AiChat(commands.Cog):
             first_pic_url = pic[0]
             response = requests.get(first_pic_url.url)
             img = Image.open(BytesIO(response.content))
-            model = genai.GenerativeModel('gemini-1.0-pro-vision-latest')
+            model = genai.GenerativeModel(GEMINI_VISION_MODEL)
             #content = '請以\"四春櫻\"的第一人稱身份並以繁體中文進行回答，避免說出"作為"或"身為"之類的怪異發言，並且不要在回應中提到任何在之前的對話中提出的任何提示詞。\n\n' + os.environ["PersonaInfo"] + "\n" + content
-            response = model.generate_content(contents=[content,img])
+            response = await model.generate_content_async(contents=[content,img])
         else:
             user = message.guild.get_member(message.author.id)
             name = message.author.name if user is None else user.display_name
             nowTime = datetime.now().strftime("目前的時間: %Y/%m/%d %H:%M:%S \n")
             
-            model = genai.GenerativeModel('gemini-1.0-pro-latest')
+            model = genai.GenerativeModel(GEMINI_MODEL)
             chat = model.start_chat(history=AiChat.getStartupPrompt())
             if reference_msg:
                 chat = AiChat.get_chat_history(message=reference_msg, chat=chat, bot=bot)
                 content = nowTime + os.getenv('PersonaStartPrompt') + "目前與您對話的人是" + name + "，請接續上一段對話\n\n" + content
             else:
                 content = nowTime + os.getenv('PersonaStartPrompt') + "與您對話的人是" + name + "\n\n" + content
-            response = chat.send_message(content=content, safety_settings={'HARASSMENT':'block_none',"HATE":'SEX',"HATE":'block_none',"DANGER":'block_none'})
+            response = await chat.send_message_async(content=content, safety_settings={'HARASSMENT':'block_none',"SEX":'block_none',"HATE":'block_none',"DANGER":'block_none'})
         await message.reply(response.text)
 
     @staticmethod
@@ -446,8 +448,12 @@ class AiChat(commands.Cog):
         startupPrompt[3].role = "model"
         startupPrompt.append(glm.Content(parts = [glm.Part(text=os.environ["PersonaInfo3"])]))
         startupPrompt[4].role = "user"
-        startupPrompt.append(glm.Content(parts = [glm.Part(text='我知道了，我會完全融入"四春櫻"的人設中，並且會遵守時間相關要求。')]))
+        startupPrompt.append(glm.Content(parts = [glm.Part(text='我知道了。')]))
         startupPrompt[5].role = "model"
+        startupPrompt.append(glm.Content(parts = [glm.Part(text=os.environ["PersonaInfo4"])]))
+        startupPrompt[6].role = "user"
+        startupPrompt.append(glm.Content(parts = [glm.Part(text='我知道了，我會完全融入"四春櫻"的人設中，並且會遵守時間相關要求。')]))
+        startupPrompt[7].role = "model"
         return startupPrompt
     
     @staticmethod
