@@ -39,14 +39,14 @@ class MainCommands(commands.Cog):
     @option("text", type=type.string, description="欲翻譯的文字", required=False)
     @option("url", type=type.string, description="欲翻譯的discord文字連結", required=False)
     async def trans(self,message: discord.ApplicationContext, text=None, url: str=None):
-        if text != None:
+        if text is not None:
             output = translator.translate(text, dest='zh-tw').text
             embed = SakuraEmbedMsg()
             embed.add_field(name="原文",value=text,inline=False)
             embed.add_field(name="翻譯",value=output,inline=False)
             await message.respond(embed=embed)
             return
-        elif url != None and "https://discord.com/channels/" in url:
+        elif url is not None and "https://discord.com/channels/" in url:
             raw_url = url.split("/")
             channel = int(raw_url[len(raw_url) - 2])
             msg_id = int(raw_url[len(raw_url) - 1])

@@ -1,4 +1,4 @@
-import discord,asyncio,os,sqlite3,random,time,requests,pickle,io
+import discord,asyncio,os,sqlite3,random,time,requests,pickle,io, filetype
 from discord.ext import commands
 from discord import default_permissions,option,OptionChoice
 from discord import SlashCommandOptionType as type
@@ -18,10 +18,30 @@ from IPython.display import Markdown
 from extensions.search import GoogleSearch
 
 load_dotenv()
-GEMINI_MODEL = "gemini-1.0-pro-latest"
-GEMINI_VISION_MODEL = "gemini-1.0-pro-vision-latest"
-
+#GEMINI_MODEL = "gemini-1.0-pro-latest"
+GEMINI_MODEL = "gemini-1.5-flash-latest"
+#GEMINI_VISION_MODEL = "gemini-1.0-pro-vision-latest"
+GEMINI_VISION_MODEL = "gemini-1.5-flash-latest"
 #OpenAiAPIKey = os.getenv("OPENAPIKEY")
+safety_settings = [
+  {
+    "category": "HARM_CATEGORY_HARASSMENT",
+    "threshold": "BLOCK_NONE",
+  },
+  {
+    "category": "HARM_CATEGORY_HATE_SPEECH",
+    "threshold": "BLOCK_NONE",
+  },
+  {
+    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+    "threshold": "BLOCK_NONE",
+  },
+  {
+    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+    "threshold": "BLOCK_NONE",
+  },
+]
+
 
 class EventsListener(commands.Cog):
     def __init__(self, bot:discord.Bot):
@@ -161,17 +181,15 @@ class EventsListener(commands.Cog):
             if message.reference.message_id in self.quetion.msg_id:
                 await self.game_process(message)
         #print(message.reference.resolved.content)
-        if message.reference != None and 909796683418832956 == message.reference.resolved.author.id:
-            reply_msg:discord.Message = self.bot.get_message(message.reference.message_id)
-            await message.channel.trigger_typing()
+        if message.reference is not None and message.reference.resolved is not None and 909796683418832956 == message.reference.resolved.author.id:
             try:
-                await AiChat.singleChat(content=message.content, message=message, reference_msg=reply_msg, bot=self.bot)
+                await AiChat.singleChat(content=message.content, message=message, bot=self.bot)
             except Exception as e:
                 await message.reply(embed=SakuraEmbedMsg(title="訊息無法傳送",description=str(e.args[0])))
         if isinstance(message.channel, discord.DMChannel):
             try:
                 await message.channel.trigger_typing()
-                reply = await self.dmAichat.chat(user=message.author, content = message.content)
+                reply = await self.dmAichat.chat(message=message)
                 await message.channel.send(content = reply)
             except Exception as e:
                 await message.reply(embed=SakuraEmbedMsg(title="訊息無法傳送",description=str(e.args[0])))
@@ -301,17 +319,18 @@ class AiChat(commands.Cog):
         with open('./AIHistory/user_history.pickle', 'wb') as f:
             pickle.dump(self.userHistory, f)
     
-    async def chat(self, user:discord.User = None, content:str = "", tmp_msg:discord.Interaction = None):
-        chat:genai.ChatSession = self.getUserHistory(user=user)
+    async def chat(self, message: discord.Message, tmp_msg: discord.Interaction = None):
+        chat:genai.ChatSession = self.getUserHistory(user=message.author)
         chat_len = len(chat.history) / 2
         if chat_len > 101:
             raise Exception("您目前已達到對話上限(100次)，請使用/forgotjuice指令來餵四春櫻遺忘汁(重置對話)\n也可以在刪除對話以前使用/chat_history將對話導出保存。")
         if tmp_msg:
             await tmp_msg.edit_original_response(embed = SakuraEmbedMsg("四春櫻正在輸入回應...", loading=True))
         nowTime = datetime.now().strftime("目前的時間(24小時制): %Y/%m/%d %H:%M:%S \n")
-        content = nowTime + os.getenv('PersonaStartPrompt') + content
-        response = await chat.send_message_async(content, safety_settings={'HARASSMENT':'block_none',"SEX":'block_none',"HATE":'block_none',"DANGER":'block_none'})
-        self.userHistory.update({user.id: chat.history})
+        content = nowTime + os.getenv('PersonaStartPrompt') + "與您對話的人是" + message.author.name + "\n\n" + message.content
+        content = AiChat.get_message_attachment(message=message, content=[content])
+        response = await chat.send_message_async(content, safety_settings=safety_settings)
+        self.userHistory.update({message.author.id: chat.history})
         self.save_user_history()
         #return self.to_markdown(response.text)
         if chat_len > 80:
@@ -344,7 +363,7 @@ class AiChat(commands.Cog):
     @commands.slash_command(name="chat_history", description="將目前的AI對話紀錄私訊給您")
     async def chat_history(self, ctx: discord.ApplicationContext):
         user_id = ctx.author.id
-        # 從 userHistory   中找到指定使用者的對話紀錄
+        # 從 userHistory 中找到指定使用者的對話紀錄
         user_history = self.userHistory.get(user_id)
         if not user_history:
             await ctx.respond(embed=SakuraEmbedMsg("錯誤", "該使用者的對話紀錄不存在"))
@@ -367,44 +386,66 @@ class AiChat(commands.Cog):
         await ctx.respond(embed=SakuraEmbedMsg("成功", "對話紀錄已私訊給您"))
 
     @staticmethod
-    async def singleChat(content, pic=None, message:discord.Message = None, reference_msg:discord.Message = None,  bot:discord.Client = None):
-        if pic:
-            first_pic_url = pic[0]
-            response = requests.get(first_pic_url.url)
-            img = Image.open(BytesIO(response.content))
-            model = genai.GenerativeModel(GEMINI_VISION_MODEL)
-            #content = '請以\"四春櫻\"的第一人稱身份並以繁體中文進行回答，避免說出"作為"或"身為"之類的怪異發言，並且不要在回應中提到任何在之前的對話中提出的任何提示詞。\n\n' + os.environ["PersonaInfo"] + "\n" + content
-            response = await model.generate_content_async(contents=[content,img])
+    async def singleChat(content, message:discord.Message = None, bot:discord.Client = None):
+        await message.channel.trigger_typing()
+        content = AiChat.get_message_attachment(message=message, content=[content])
+        user = message.guild.get_member(message.author.id)
+        name = message.author.name if user is None else user.display_name
+        nowTime = datetime.now().strftime("目前的時間: %Y/%m/%d %H:%M:%S \n")
+        model = genai.GenerativeModel(GEMINI_MODEL)
+        chat = model.start_chat(history=AiChat.getStartupPrompt())
+        reference_msg = bot.get_message(message.reference.message_id) if message.reference is not None else None
+        if reference_msg:
+            chat = AiChat.get_chat_history(message=reference_msg, chat=chat, bot=bot)
+            content_prefix = nowTime + os.getenv('PersonaStartPrompt') + "目前與您對話的人是" + name + "，請接續上一段對話\n\n"
         else:
-            user = message.guild.get_member(message.author.id)
-            name = message.author.name if user is None else user.display_name
-            nowTime = datetime.now().strftime("目前的時間: %Y/%m/%d %H:%M:%S \n")
-            
-            model = genai.GenerativeModel(GEMINI_MODEL)
-            chat = model.start_chat(history=AiChat.getStartupPrompt())
-            if reference_msg:
-                chat = AiChat.get_chat_history(message=reference_msg, chat=chat, bot=bot)
-                content = nowTime + os.getenv('PersonaStartPrompt') + "目前與您對話的人是" + name + "，請接續上一段對話\n\n" + content
-            else:
-                content = nowTime + os.getenv('PersonaStartPrompt') + "與您對話的人是" + name + "\n\n" + content
-            response = await chat.send_message_async(content=content, safety_settings={'HARASSMENT':'block_none',"SEX":'block_none',"HATE":'block_none',"DANGER":'block_none'})
+            content_prefix = nowTime + os.getenv('PersonaStartPrompt') + "與您對話的人是" + name + "\n\n"
+        content[0] = content_prefix + content[0]
+
+        response = await chat.send_message_async(content=content, safety_settings=safety_settings)
         await message.reply(response.text)
 
     @staticmethod
     def get_chat_history(message:discord.Message, chat:genai.ChatSession, bot:discord.Client = None) -> genai.ChatSession:
-        if message.reference.resolved.reference != None:
-            ref_message = bot.get_message(message.reference.resolved.reference.message_id)
-            chat = AiChat.get_chat_history(message=ref_message, chat=chat, bot=bot)
-        msg_send = message.reference.resolved.content
-        msg_respond = message.content
-        chat.history.append(glm.Content(parts = [glm.Part(text=msg_send)]))
-        history_len = len(chat.history)
-        chat.history[history_len - 1].role = "user"
-        chat.history.append(glm.Content(parts = [glm.Part(text=msg_respond)]))
-        chat.history[history_len].role = "model"
+        if message is not None and message.reference is not None and message.reference.resolved is not None:
+            if message.reference.resolved.reference is not None:
+                ref_message = bot.get_message(message.reference.resolved.reference.message_id)
+                chat = AiChat.get_chat_history(message=ref_message, chat=chat, bot=bot)
+            if message.reference.resolved.content is not None:
+                chat.history.extend([
+                    glm.Content(parts=[glm.Part(text=message.reference.resolved.content)], role="user"),
+                    glm.Content(parts=[glm.Part(text=message.content)], role="model")
+                ])
+        else:
+            user_chat_history = AiChat.get_user_chat_history(message=message, bot=bot)
+            chat.history.extend([
+                glm.Content(parts=[glm.Part(text=f"以下是一段目前的使用者與其他使用者對話的紀錄: {user_chat_history}")], role="user"),
+                glm.Content(parts=[glm.Part(text="我知道了。")], role="model")
+            ])
         return chat
-
     
+    @staticmethod
+    def get_user_chat_history(message: discord.Message, bot: discord.Client, user_chat_history: str = "") -> str:
+        user_chat_history = f"使用者{message.author.display_name}說了: {message.content}\n" + user_chat_history
+        if message.reference is not None and message.reference.resolved is not None and not message.reference.resolved.author.bot:
+            ref_message = bot.get_message(message.reference.resolved.reference.message_id)
+            user_chat_history = AiChat.get_user_chat_history(message=ref_message, bot=bot, user_chat_history=user_chat_history)
+        return user_chat_history
+    
+    @staticmethod
+    def get_message_attachment(message: discord.Message, content: list) -> list:
+        if message.attachments:
+            for file in message.attachments:
+                response = requests.get(file.url)
+                file_type = filetype.guess(response.content).mime
+                if file_type is None:
+                    raise Exception("不支援該檔案類型")
+                content.append({
+                    'mime_type': file_type,
+                    'data': response.content
+                })
+        return content
+
     '''@staticmethod
     async def singleChat(content, pic = None, message:discord.Message = None):
         search = GoogleSearch()
@@ -460,67 +501,6 @@ class AiChat(commands.Cog):
     def to_markdown(text:str):
         text = text.replace('•', '  *')
         return Markdown(textwrap.indent(text, '> ', predicate=lambda _: True))
-
-'''class AiChat(commands.Cog):
-    def __init__(self, bot):
-        self.bot:discord.Bot = bot
-        self.persona_info = os.getenv("PersonaInfo")
-        openai.api_key = OpenAiAPIKey
-
-    async def extract_city_from_input(self, input_text):
-        response = openai.Completion.create(
-            model="text-davinci-002",
-            prompt=f"從這段輸入中提取城市名稱: '{input_text}'\n",
-            max_tokens=10
-        )
-        city_name = response.choices[0].text.strip().split('\n')[0]
-        return city_name
-
-    async def execute_command(self, ctx, command, **kwargs):
-        if command == "儲存消息":
-            await self.bot.get_command('pin_msg')(ctx, **kwargs)
-        elif command == "查詢天氣":
-            await self.bot.get_command('weather')(ctx, **kwargs)
-        # ... 根據您的指令添加更多邏輯
-
-    async def handle_command(self, ctx:discord.Message, message):
-        response = openai.Completion.create(
-            model="text-davinci-002",  # 使用 GPT-3
-            prompt=f"判斷這個用戶的輸入是否涉及指令: '{message.content}'\n\n",
-            max_tokens=50
-        )
-
-        command_response = response.choices[0].text.strip()
-        if "翻譯" in command_response:
-            await self.execute_command(ctx, "翻譯", text=message.content)
-        elif "天氣" in command_response:
-            city = self.extract_city_from_input(message.content)  # 提取城市名稱的邏輯
-            await self.execute_command(ctx, "查詢天氣", weather=city)
-        # ... 添加更多判斷和執行邏輯
-        else:
-        # 使用 GPT-4 進行基於人設的回應
-        async with ctx.channel.typing():
-            persona_response = openai.ChatCompletion.create(
-                    model="gpt-4-1106-preview",
-                    messages=[
-                        {"role": "system", "content": self.persona_info},
-                        {"role": "user", "content": f"請以四春櫻的人設回應以下對話\n\n{message.content}"}
-                    ],
-                    max_tokens=1000
-                )
-            await ctx.channel.send(persona_response.choices[0].message["content"])
-
-
-    @commands.slash_command(name="chat", description="與我聊天吧!(基於GPT-4)")
-    async def chat(self, ctx, *, message: str):
-        await self.handle_command(ctx, message)
-
-    @commands.Cog.listener()
-    async def on_message(self, message:discord.Message):
-        if message.author == self.bot.user or not isinstance(message.channel, discord.DMChannel):
-            return
-        ctx = self.bot.get_message(message.id)
-        await self.handle_command(ctx, message)'''
 
 def setup(bot:discord.Bot):
     bot.add_cog(EventsListener(bot))

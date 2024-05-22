@@ -91,7 +91,7 @@ class TagCommands(object):
         else:
             try:
                 await message.channel.trigger_typing()
-                await events.AiChat.singleChat(content=command,pic=message.attachments,message=message)
+                await events.AiChat.singleChat(content=command,message=message, bot=self.bot)
             except Exception as e:
                 await message.reply(embed=SakuraEmbedMsg(title="訊息無法傳送",description=str(e.args[0])))
 
