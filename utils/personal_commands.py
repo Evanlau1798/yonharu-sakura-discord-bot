@@ -74,7 +74,8 @@ class TagCommands(object):
         self.bot:discord.Client = bot
         self.command_dict = {
             "幫我釘選": self.ping_msg,
-            "runcode": self.run_code
+            "runcode": self.run_code,
+            "ping": self.ping
         }
         self.pinnedMsgDB = sqlite3.connect(f"./databases/PinnedMsg.db")
         self.pinnedMsgDB_cursor = self.pinnedMsgDB.cursor()
@@ -94,6 +95,9 @@ class TagCommands(object):
                 await events.AiChat.singleChat(content=command,message=message, bot=self.bot)
             except Exception as e:
                 await message.reply(embed=SakuraEmbedMsg(title="訊息無法傳送",description=str(e.args[0])))
+
+    async def ping(self, message: discord.Message):
+        await message.reply(f"延遲:{round(self.bot.latency*1000)}ms")
 
     async def ping_msg(self,message: discord.Message):
         ctx:discord.Message = message.reference.cached_message

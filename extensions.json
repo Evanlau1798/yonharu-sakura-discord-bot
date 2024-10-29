@@ -1,5 +1,6 @@
 [
     "extensions.main_commands",
     "extensions.channel_events",
-    "extensions.snipe"
+    "extensions.snipe",
+    "extensions.AIChat"
 ]

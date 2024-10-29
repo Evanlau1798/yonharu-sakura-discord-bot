@@ -37,7 +37,7 @@ class mainBot(discord.Bot):
 
 if __name__ == "__main__":
     intents = discord.Intents.default()
-    intents.message_content = True
+    #intents.message_content = True
     intents.messages = True
     intents.typing = True
     intents.voice_states = True
